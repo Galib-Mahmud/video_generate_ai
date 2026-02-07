@@ -1,0 +1,60 @@
+import 'package:get/get_navigation/src/routes/get_route.dart';
+import 'package:get/get_navigation/src/routes/transitions_type.dart';
+import 'package:hussein/feature/splash/screen/splash_screen.dart';
+
+import '../feature/auth/screen/forgot_pass_otp_screen.dart';
+import '../feature/auth/screen/forgot_password_screen.dart';
+import '../feature/auth/screen/reset_password_screen.dart';
+import '../feature/auth/screen/sign_in_screen.dart';
+import '../feature/auth/screen/sign_up_screen.dart';
+import '../feature/home/main_screen.dart';
+import '../feature/profile/screen/profile_screen.dart';
+import 'app_route.dart';
+
+class AppRoute {
+  static final List<GetPage> pages = [
+    GetPage(
+      name: RouteName.splash,
+      page: () => SplashScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.splash,
+      page: () => SplashScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.signIn,
+      page: () => SignInScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.signUp,
+      page: () => SignUpScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.forgetPassword,
+      page: () => ForgetPasswordScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.forgotPassOtp,
+      page: () => ForgetPasswordOtpScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.resetPassword,
+      page: () => ResetPasswordScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.profile,
+      page: () => ProfileScreen(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: RouteName.main,
+      page: () => MainScreen(),
+      transition: Transition.noTransition,
+    ),
+  ];
+}
