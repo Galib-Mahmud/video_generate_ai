@@ -1,5 +1,8 @@
+// custom_button.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../color/app_color.dart';
+
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -19,33 +22,45 @@ class CustomButton extends StatelessWidget {
         height: 46.h,
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              Color(0xFF09AFB9), // 0% - Cyan
-              Color(0xFFFFAD72), // 53% - Orange
-              Color(0xFFF96D01), // 100% - Dark Orange
-            ],
-            stops: [0.0, 0.53, 6.0],
-          ),
+          color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(23.r),
           boxShadow: [
+            // White glow on the left side
             BoxShadow(
-              color: const Color(0xFFF96D01).withOpacity(0.2),
-              blurRadius: 12.r,
-              offset: Offset(0, 4.h),
+              color: Colors.white.withOpacity(0.25),
+              blurRadius: 16.r,
+              spreadRadius: 0,
+              offset: Offset(-6.w, 0),
+            ),
+            // White glow on the right side
+            BoxShadow(
+              color: Colors.white.withOpacity(0.25),
+              blurRadius: 16.r,
+              spreadRadius: 0,
+              offset: Offset(6.w, 0),
+            ),
+            // Subtle overall glow to match screenshot
+            BoxShadow(
+              color: Colors.white.withOpacity(0.08),
+              blurRadius: 20.r,
+              spreadRadius: 1,
+              offset: Offset.zero,
             ),
           ],
         ),
         child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 17.sp,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
+          child: ShaderMask(
+            shaderCallback: (bounds) =>
+                AppColors.textGradient.createShader(bounds),
+            blendMode: BlendMode.srcIn,
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.white, // overridden by ShaderMask
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ),

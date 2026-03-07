@@ -10,6 +10,9 @@ class RouteName {
   static const String resetPassword = '/reset-password';
   static const String profile = '/profile';
   static const String main = '/main';
+  static const String privacy = '/privacy';
+  static const String video = '/video';
+
 
 
 

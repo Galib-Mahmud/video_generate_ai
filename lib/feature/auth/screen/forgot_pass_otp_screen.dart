@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import '../../../route/app_route.dart';
 import '../widget/custom_button.dart';
 
 class ForgetPasswordOtpScreen extends StatefulWidget {
@@ -118,7 +119,7 @@ class _ForgetPasswordOtpScreenState extends State<ForgetPasswordOtpScreen> {
                     CustomButton(
                       text: 'Submit',
                       onTap: () {
-                        // Get.toNamed(RouteName.resetPassword);
+                        Get.toNamed(RouteName.resetPassword);
                       },
                     ),
                     SizedBox(height: 30.h),

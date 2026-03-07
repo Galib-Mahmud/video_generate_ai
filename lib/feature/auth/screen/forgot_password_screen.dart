@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import '../../../route/app_route.dart';
 import '../../../route/route_name.dart';
 import '../widget/custom_button.dart';
 
@@ -84,7 +85,7 @@ class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
                       text: 'Send OTP',
                       onTap: () {
                         // // Navigate to Forget Password OTP screen
-                        // Get.toNamed(RouteName.forgetPasswordOtp);
+                        Get.toNamed(RouteName.forgotPassOtp);
                       },
                     ),
                     SizedBox(height: 30.h),

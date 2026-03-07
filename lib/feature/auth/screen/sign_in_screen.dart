@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import '../../../route/app_route.dart';
 import '../../../route/route_name.dart';
 import '../widget/custom_button.dart';
 
@@ -101,7 +102,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           child: TextButton(
                             onPressed: () {
 
-                              // Get.toNamed(RouteName.forgetPassword);
+                               Get.toNamed(RouteName.forgetPassword);
 
                             },
                             child: Text(
@@ -200,7 +201,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         GestureDetector(
                           onTap: () {
 
-                            // Get.toNamed(RouteName.signUp);
+                            Get.toNamed(RouteName.signUp);
 
                           },
                           child: Text(

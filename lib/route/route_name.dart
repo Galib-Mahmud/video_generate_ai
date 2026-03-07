@@ -8,6 +8,8 @@ import '../feature/auth/screen/reset_password_screen.dart';
 import '../feature/auth/screen/sign_in_screen.dart';
 import '../feature/auth/screen/sign_up_screen.dart';
 import '../feature/home/main_screen.dart';
+import '../feature/home/screen/video_screen.dart';
+import '../feature/profile/screen/privacy_policy_screen.dart';
 import '../feature/profile/screen/profile_screen.dart';
 import 'app_route.dart';
 
@@ -54,6 +56,18 @@ class AppRoute {
     GetPage(
       name: RouteName.main,
       page: () => MainScreen(),
+      transition: Transition.noTransition,
+    ), GetPage(
+      name: RouteName.privacy,
+      page: () => PrivacyPolicyScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.profile,
+      page: () => ProfileScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.video,
+      page: () => YourVideosScreen(),
       transition: Transition.noTransition,
     ),
   ];

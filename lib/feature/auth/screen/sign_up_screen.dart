@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import '../../../route/app_route.dart';
 import '../widget/custom_button.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -146,8 +147,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     CustomButton(
                       text: 'Sign up',
                       onTap: () {
-                        // Navigate to OTP screen
-                        // Get.toNamed(RouteName.signUpOtp);
+
+                         Get.toNamed(RouteName.main);
                       },
                     ),
                     SizedBox(height: 24.h),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hussein/route/app_route.dart';
 import 'package:hussein/route/route_name.dart';
 
 import '../widget/custom_button.dart';
@@ -106,6 +107,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     CustomButton(
                       text: 'Confirm',
                       onTap: () {
+
+                        Get.toNamed(RouteName.signIn);
 
                       },
                     ),

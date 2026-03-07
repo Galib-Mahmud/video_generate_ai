@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
 
+import '../../color/app_color.dart';
 
 class CustomDrawer extends StatelessWidget {
   final VoidCallback onClose;
@@ -11,181 +11,111 @@ class CustomDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 280.w,
+      width: 260.w,
       height: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0D0D0D),
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-      ),
+      color: const Color(0xFF080808),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with logo and close button
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Logo
-                  Image.asset(
-                    'assets/images/splash/stumble.png',
-                    fit: BoxFit.cover,
-                  ),
-                  // Close button
-                  GestureDetector(
-                    onTap: onClose,
-                    child: Container(
-                      width: 40.w,
-                      height: 40.w,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.white.withOpacity(0.9),
-                        size: 24.w,
+            SizedBox(height: 20.h),
 
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 10.h),
-
-            // Profile Section
+            // ── Hamburger icon (acts as close) ─────────────────
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 50.w,
-                    height: 50.w,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6B4EAA), Color(0xFF9B6BFF)],
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFF4EFFEE),
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/avatar/profile.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 28.w,
-                          );
-                        },
-                      ),
-                    ),
+              child: GestureDetector(
+                onTap: onClose,
+                behavior: HitTestBehavior.opaque,
+                child: Image.asset(
+                  'assets/icons/drawer/menu.png',       // 🔁 your path here
+                  width: 24.w,
+                  height: 24.w,
+                  color: Colors.white,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.menu,
+                    color: Colors.white,
+                    size: 24.w,
                   ),
-                  SizedBox(width: 12.w),
-                  // Name and Email
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Daniel Jones',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 2.h),
-                      Text(
-                        'daniel.jones@example.com',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 12.h),
-
-            // Badge
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF232244),
-                  borderRadius: BorderRadius.circular(20.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.workspace_premium,
-                      color: const Color(0xFF4CAF50),
-                      size: 16.w,
-                    ),
-                    SizedBox(width: 6.w),
-                    Text(
-                      "Founder's Badge",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
 
-            SizedBox(height: 30.h),
+            SizedBox(height: 40.h),
 
-            // Menu Items - All using asset image paths
+            // ── Menu Items ──────────────────────────────────────
             _buildMenuItem(
-              icon: 'assets/images/icon/video_icon.png',
-              label: 'My Videos',
+              iconPath: 'assets/images/drawer/profile.png',
+              label: 'Profile',
               onTap: () {},
             ),
             _buildMenuItem(
-              icon: 'assets/images/icon/dashboard_icon.png',
-              label: 'Dashboard',
+              iconPath: 'assets/images/drawer/subscribe.png',
+              label: 'Subscription',
               onTap: () {},
             ),
             _buildMenuItem(
-              icon: 'assets/images/icon/settings_icon.png',
-              label: 'Settings',
-              onTap: () {
-
-              },
+              iconPath: 'assets/images/drawer/privacy.png',
+              label: 'Privacy policy',
+              onTap: () {},
             ),
 
             const Spacer(),
 
-            // Logout
-            _buildMenuItem(
-              icon: 'assets/images/icon/logout.png',
-              label: 'Log out',
-              onTap: () {
-                // Handle logout
-              },
-              isLogout: true,
+            // ── Log out ─────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      // Handle logout
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Logout icon — uses AppColors.cyan tint
+                        Image.asset(
+                          'assets/images/drawer/logout.png',      // 🔁 your path
+                          width: 20.w,
+                          height: 20.w,
+                          color: AppColors.cyan,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.logout_rounded,
+                            color: AppColors.cyan,
+                            size: 20.w,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        ShaderMask(
+                          shaderCallback: (bounds) => AppColors.textGradient.createShader(bounds),
+                          blendMode: BlendMode.srcIn,
+                          child: Text(
+                            'Log out',
+                            style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  // Underline — AppColors.cyan with opacity
+                  Container(
+                    height: 1,
+                    width: 110.w,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.textGradient,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-            SizedBox(height: 30.h),
+            SizedBox(height: 40.h),
           ],
         ),
       ),
@@ -193,49 +123,46 @@ class CustomDrawer extends StatelessWidget {
   }
 
   Widget _buildMenuItem({
-    required String icon,
+    required String iconPath,
     required String label,
     required VoidCallback onTap,
-    bool isLogout = false,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(12.r),
-        ),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         child: Row(
           children: [
+            // Icon — white
             Image.asset(
-              icon,
-              fit: BoxFit.cover,
-              color: isLogout ? const Color(0xFFFF5252) : null,
-              errorBuilder: (context, error, stackTrace) {
-                return Icon(
-                  Icons.image_not_supported,
-                  color: Colors.white.withOpacity(0.5),
-                  size: 24.w,
-                );
-              },
+              iconPath,
+              width: 22.w,
+              height: 22.w,
+              color: Colors.white,
+              errorBuilder: (_, __, ___) => Icon(
+                Icons.circle_outlined,
+                color: Colors.white,
+                size: 22.w,
+              ),
             ),
-            SizedBox(width: 18.w),
+            SizedBox(width: 16.w),
+            // Label
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18.sp,
+                  fontSize: 15.sp,
                   fontWeight: FontWeight.w400,
                 ),
               ),
             ),
+            // Chevron
             Icon(
               Icons.chevron_right,
               color: Colors.white,
-              size: 24.w,
+              size: 20.w,
             ),
           ],
         ),
