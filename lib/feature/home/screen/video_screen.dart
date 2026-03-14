@@ -17,13 +17,13 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
   // ── Demo video data — replace image paths with your actual assets ──
   final List<Map<String, dynamic>> _videos = [
     {
-      'thumbnail': 'assets/images/videos/video_thumb_1.png',  // 🔁 your path
+      'thumbnail': 'assets/images/videos/video_thumb_1.png',
       'title': 'Boost Your Productivity with AI',
       'time': '7 min ago',
       'isNew': true,
     },
     {
-      'thumbnail': 'assets/images/videos/video_thumb_2.png',  // 🔁 your path
+      'thumbnail': 'assets/images/videos/video_thumb_2.png',
       'title': 'Boost Your Productivity with AI',
       'time': '2 day ago',
       'isNew': false,
@@ -63,17 +63,29 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
               _buildPageTitle(),
               SizedBox(height: 24.h),
 
-              // ── Body ─────────────────────────────────────────
+              // ── Scrollable Body + Button ───────────────────────
               Expanded(
-                child: _isLoading
-                    ? _buildLoader()
-                    : _hasVideos
-                    ? _buildVideoList()
-                    : _buildEmptyState(),
-              ),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Content area with fixed height so empty/loader centers
+                      SizedBox(
+                        height: 400.h,
+                        child: _isLoading
+                            ? _buildLoader()
+                            : _hasVideos
+                            ? _buildVideoList()
+                            : _buildEmptyState(),
+                      ),
 
-              // ── Generate button — only when empty, not loading ─
-              if (!_isLoading && !_hasVideos) _buildGenerateButton(),
+                      // Generate button just above bottom — only when empty
+                      if (!_isLoading && !_hasVideos) _buildGenerateButton(),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -90,7 +102,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
           GestureDetector(
             onTap: () {},
             child: Image.asset(
-              'assets/icons/menu.png',                         // 🔁 your path
+              'assets/icons/menu.png',
               width: 22.w,
               height: 22.w,
               color: Colors.white,
@@ -101,8 +113,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
           Expanded(
             child: Center(
               child: Image.asset(
-                'assets/images/auth/logo.png',              // 🔁 your path
-
+                'assets/images/auth/logo.png',
               ),
             ),
           ),
@@ -146,6 +157,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
             width: 36.w,
@@ -174,6 +186,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             "You haven't created any videos yet",
@@ -197,6 +210,9 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
   Widget _buildVideoList() {
     return ListView.separated(
       padding: EdgeInsets.symmetric(horizontal: 16.w),
+      // ⬇ must be false inside SingleChildScrollView
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: _videos.length,
       separatorBuilder: (_, __) => SizedBox(height: 12.h),
       itemBuilder: (_, i) => _buildVideoCard(_videos[i]),
@@ -363,7 +379,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 30.h),
       child: GestureDetector(
-        onTap: _onGenerateTapped,          // ← triggers load → show videos
+        onTap: _onGenerateTapped,
         child: Container(
           height: 52.h,
           width: double.infinity,

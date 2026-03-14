@@ -7,7 +7,6 @@ import 'package:hussein/route/route_name.dart';
 import 'package:hussein/theme/app_theme.dart';
 
 
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -30,7 +29,7 @@ class _MyAppState extends State<MyApp> {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          initialRoute: RouteName.video,
+          initialRoute: RouteName.splash,
           getPages: AppRoute.pages,
 
           // এই builder add করো - globally সব screen এ apply হবে

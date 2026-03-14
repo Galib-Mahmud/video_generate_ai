@@ -8,6 +8,10 @@ import '../feature/auth/screen/reset_password_screen.dart';
 import '../feature/auth/screen/sign_in_screen.dart';
 import '../feature/auth/screen/sign_up_screen.dart';
 import '../feature/home/main_screen.dart';
+import '../feature/home/screen/app_drawer_screen.dart';
+import '../feature/home/screen/generate_video.dart';
+import '../feature/home/screen/home_screen.dart';
+import '../feature/home/screen/subscription_screen.dart';
 import '../feature/home/screen/video_screen.dart';
 import '../feature/profile/screen/privacy_policy_screen.dart';
 import '../feature/profile/screen/profile_screen.dart';
@@ -48,10 +52,6 @@ class AppRoute {
       name: RouteName.resetPassword,
       page: () => ResetPasswordScreen(),
       transition: Transition.noTransition,
-    ),GetPage(
-      name: RouteName.profile,
-      page: () => ProfileScreen(),
-      transition: Transition.noTransition,
     ),
     GetPage(
       name: RouteName.main,
@@ -68,6 +68,22 @@ class AppRoute {
     ),GetPage(
       name: RouteName.video,
       page: () => YourVideosScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.drawer,
+      page: () => CustomDrawer(onClose: () {  },),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.home,
+      page: () => HomeScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.subscribe,
+      page: () => SubscriptionScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.generate,
+      page: () => VideoCreationFlowScreen(),
       transition: Transition.noTransition,
     ),
   ];

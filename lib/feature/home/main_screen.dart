@@ -3,6 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:hussein/feature/home/screen/app_drawer_controller.dart';
 import 'package:hussein/feature/home/screen/app_drawer_screen.dart';
+import 'package:hussein/feature/home/screen/generate_video.dart';
+import 'package:hussein/feature/home/screen/home_screen.dart';
+import 'package:hussein/feature/home/screen/video_screen.dart';
 import '../color/app_color.dart';
 import '../profile/screen/profile_screen.dart';
 
@@ -65,9 +68,9 @@ class _MainScreenState extends State<MainScreen>
   }
 
   final List<Widget> _pages = [
-    ProfileScreen(),
-    ProfileScreen(),
-    ProfileScreen(),
+    HomeScreen(),
+    VideoCreationFlowScreen(),
+    YourVideosScreen(),
     ProfileScreen(),
   ];
 

@@ -12,6 +12,10 @@ class RouteName {
   static const String main = '/main';
   static const String privacy = '/privacy';
   static const String video = '/video';
+  static const String drawer = '/drawer';
+  static const String home = '/home';
+  static const String subscribe = '/subscribe';
+  static const String generate = '/generate';
 
 
 

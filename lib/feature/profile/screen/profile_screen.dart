@@ -33,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // ── Top Bar ────────────────────────────────────────
               _buildTopBar(),
 
+
               SizedBox(height: 20.h),
 
               // ── Page Title ─────────────────────────────────────
@@ -53,8 +54,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'Control your experience and account settings',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.45),
-                        fontSize: 13.sp,
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -132,12 +133,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           GestureDetector(
             onTap: () {
-              // open drawer
+
             },
             child: Image.asset(
               'assets/icons/profile/menu.png',                        // 🔁 your path
-              width: 22.w,
-              height: 22.w,
+              width: 26.w,
+              height: 26.w,
               color: Colors.white,
               errorBuilder: (_, __, ___) =>
                   Icon(Icons.menu, color: Colors.white, size: 22.w),
@@ -146,8 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: Center(
               child: Image.asset(
-                'assets/images/auth/logo.png',                   // 🔁 your logo path
-
+                'assets/images/auth/logo.png',
+                fit: BoxFit.cover,
 
               ),
             ),

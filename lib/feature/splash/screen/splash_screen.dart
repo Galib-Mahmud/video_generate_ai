@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import '../../../route/app_route.dart';
 import '../../../route/route_name.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen> {
         _currentPage++;
       });
     } else {
-      // Get.toNamed(R.signIn); // Last screen e chole gele sign in screen e jabe
+       Get.toNamed(RouteName.signIn); // Last screen e chole gele sign in screen e jabe
     }
   }
 
