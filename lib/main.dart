@@ -1,25 +1,40 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:hussein/core/local_storage/user_info.dart';
 import 'package:hussein/route/app_route.dart';
 import 'package:hussein/route/route_name.dart';
 import 'package:hussein/theme/app_theme.dart';
 
-
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+
+  // Pre-warm SharedPreferences and load tokens into memory cache.
+  // Must run before runApp() so all controllers can read the token
+  // synchronously the moment the app starts.
+  await UserInfo.init();
+
+  final bool isAuthenticated = await UserInfo.isLoggedIn();
+
+  runApp(MyApp(isAuthenticated: isAuthenticated));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final bool isAuthenticated;
+  const MyApp({super.key, this.isAuthenticated = false});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
+  String get initialRoute {
+    return widget.isAuthenticated ? RouteName.main : RouteName.splash;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -29,16 +44,14 @@ class _MyAppState extends State<MyApp> {
         return GetMaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
-          initialRoute: RouteName.splash,
+          initialRoute: initialRoute,
           getPages: AppRoute.pages,
-
-          // এই builder add করো - globally সব screen এ apply হবে
           builder: (context, child) {
             return AnnotatedRegion<SystemUiOverlayStyle>(
               value: const SystemUiOverlayStyle(
                 statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.light, // Android - white icons
-                statusBarBrightness: Brightness.dark, // iOS - white icons
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
               ),
               child: child ?? const SizedBox(),
             );

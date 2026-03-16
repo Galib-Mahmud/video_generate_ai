@@ -1,7 +1,10 @@
+// lib/feature/auth/screen/sign_up_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import '../../../route/app_route.dart';
+
+import '../controller/auth_controller.dart';
 import '../widget/custom_button.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -12,20 +15,9 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _reTypePasswordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureReTypePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _reTypePasswordController.dispose();
-    super.dispose();
-  }
+  final AuthController _auth = AuthController.to;
+  bool _obscurePassword     = true;
+  bool _obscureRePassword   = true;
 
   @override
   Widget build(BuildContext context) {
@@ -50,15 +42,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 20.h),
-                        // Logo centered
-                        Center(
-                          child: Image.asset(
-                            'assets/images/auth/logo.png',
-
-                          ),
-                        ),
+                        Center(child: Image.asset('assets/images/auth/logo.png')),
                         SizedBox(height: 30.h),
-                        // Sign Up Title
                         Text(
                           'Sign Up',
                           style: TextStyle(
@@ -68,47 +53,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         SizedBox(height: 30.h),
-                        // Email Field
                         _buildTextField(
-                          controller: usernameController,
+                          controller: _auth.usernameController,
                           hintText: 'Username',
                           isPassword: false,
                         ),
                         SizedBox(height: 16.h),
-                        // Email Field
                         _buildTextField(
-                          controller: _emailController,
+                          controller: _auth.emailController,
                           hintText: 'Email',
                           isPassword: false,
+                          keyboardType: TextInputType.emailAddress,
                         ),
                         SizedBox(height: 16.h),
-                        // Password Field
                         _buildTextField(
-                          controller: _passwordController,
+                          controller: _auth.passwordController,
                           hintText: 'Password',
                           isPassword: true,
                           obscureText: _obscurePassword,
-                          onToggleVisibility: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                          onToggleVisibility: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
                         ),
                         SizedBox(height: 16.h),
-                        // Re-Type Password Field
                         _buildTextField(
-                          controller: _reTypePasswordController,
-                          hintText: 'Re-type-your-password',
+                          controller: _auth.rePasswordController,
+                          hintText: 'Re-type your password',
                           isPassword: true,
-                          obscureText: _obscureReTypePassword,
-                          onToggleVisibility: () {
-                            setState(() {
-                              _obscureReTypePassword = !_obscureReTypePassword;
-                            });
-                          },
+                          obscureText: _obscureRePassword,
+                          onToggleVisibility: () =>
+                              setState(() => _obscureRePassword = !_obscureRePassword),
                         ),
                         SizedBox(height: 80.h),
-                        // Privacy Policy Text
                         Center(
                           child: RichText(
                             textAlign: TextAlign.center,
@@ -138,74 +113,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
-              // Bottom Section
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
                 child: Column(
                   children: [
-                    // Sign Up Button
-                    CustomButton(
-                      text: 'Sign up',
-                      onTap: () {
-
-                         Get.toNamed(RouteName.main);
-                      },
-                    ),
+                    Obx(() => CustomButton(
+                      text: _auth.isLoading.value ? 'Creating account...' : 'Sign up',
+                      onTap: _auth.isLoading.value ? null : _auth.register,
+                    )),
                     SizedBox(height: 24.h),
-                    // Or Divider
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          child: Text(
-                            'or',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 14.sp,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildOrDivider(),
                     SizedBox(height: 24.h),
-                    // Social Login Buttons
-                    Row(
-                      children: [
-                        // Google Button
-                        Expanded(
-                          child: _buildSocialButton(
-                            iconPath: 'assets/images/auth/google.png',
-                            onTap: () {
-                              // Handle Google sign up
-                            },
-                          ),
-                        ),
-                        SizedBox(width: 16.w),
-                        // Apple Button
-                        Expanded(
-                          child: _buildSocialButton(
-                            iconPath: 'assets/images/auth/apple.png',
-                            onTap: () {
-                              // Handle Apple sign up
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildSocialRow(),
                     SizedBox(height: 24.h),
-                    // Sign In Text
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -217,9 +137,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () {
-                            Get.back();
-                          },
+                          onTap: () => Get.back(),
                           child: Text(
                             'Sign In',
                             style: TextStyle(
@@ -248,35 +166,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
     required bool isPassword,
     bool obscureText = false,
     VoidCallback? onToggleVisibility,
+    TextInputType? keyboardType,
   }) {
     return Container(
       height: 52.h,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(32.r),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword ? obscureText : false,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 16.sp,
-        ),
+        keyboardType: keyboardType,
+        style: TextStyle(color: Colors.white, fontSize: 16.sp),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.4),
-            fontSize: 16.sp,
-          ),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 16.sp),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16.w,
-            vertical: 14.h,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
           suffixIcon: isPassword
               ? IconButton(
             onPressed: onToggleVisibility,
@@ -292,26 +200,44 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildSocialButton({
-    required String iconPath,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 52.h,
-        decoration: BoxDecoration(
+  Widget _buildOrDivider() {
+    return Row(
+      children: [
+        Expanded(child: Container(height: 2, color: Colors.white.withOpacity(0.2))),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Text('or', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14.sp)),
+        ),
+        Expanded(child: Container(height: 2, color: Colors.white.withOpacity(0.2))),
+      ],
+    );
+  }
 
-          borderRadius: BorderRadius.circular(32.r),
-          ),
-
-        child: Center(
-          child: Image.asset(
-            iconPath,
-
+  Widget _buildSocialRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              height: 52.h,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(32.r)),
+              child: Center(child: Image.asset('assets/images/auth/google.png')),
+            ),
           ),
         ),
-      ),
+        SizedBox(width: 16.w),
+        Expanded(
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              height: 52.h,
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(32.r)),
+              child: Center(child: Image.asset('assets/images/auth/apple.png')),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

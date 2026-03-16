@@ -1,29 +1,19 @@
+// lib/feature/auth/screen/forget_password_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import '../../../route/app_route.dart';
-import '../../../route/route_name.dart';
+import '../controller/auth_controller.dart';
 import '../widget/custom_button.dart';
 
-class ForgetPasswordScreen extends StatefulWidget {
+class ForgetPasswordScreen extends StatelessWidget {
   const ForgetPasswordScreen({Key? key}) : super(key: key);
 
   @override
-  State<ForgetPasswordScreen> createState() => _ForgetPasswordScreenState();
-}
-
-class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
-  final TextEditingController _emailController = TextEditingController();
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final AuthController auth = AuthController.to;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -45,49 +35,39 @@ class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 30.h),
-                        // Logo centered
-                        Center(
-                          child: Image.asset(
-                            'assets/images/auth/logo.png',
-
-
-                          ),
-                        ),
+                        Center(child: Image.asset('assets/images/auth/logo.png')),
                         SizedBox(height: 30.h),
-                        // Forget Password Title
                         Text(
                           'Forgot Password',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 28.sp,
                             fontWeight: FontWeight.w500,
-
+                          ),
+                        ),
+                        SizedBox(height: 12.h),
+                        Text(
+                          'Enter your email to receive a verification code.',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 14.sp,
                           ),
                         ),
                         SizedBox(height: 30.h),
-                        // Email Field
-                        _buildTextField(
-                          controller: _emailController,
-                          hintText: 'Email',
-                        ),
+                        _buildTextField(controller: auth.forgotEmailController),
                       ],
                     ),
                   ),
                 ),
               ),
-              // Bottom Section
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
                 child: Column(
                   children: [
-                    // Send OTP Button
-                    CustomButton(
-                      text: 'Send OTP',
-                      onTap: () {
-                        // // Navigate to Forget Password OTP screen
-                        Get.toNamed(RouteName.forgotPassOtp);
-                      },
-                    ),
+                    Obx(() => CustomButton(
+                      text: auth.isLoading.value ? 'Sending...' : 'Send OTP',
+                      onTap: auth.isLoading.value ? null : auth.forgotPassword,
+                    )),
                     SizedBox(height: 30.h),
                   ],
                 ),
@@ -99,38 +79,23 @@ class _ForgetPasswordScreenState extends State<ForgetPasswordScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-  }) {
+  Widget _buildTextField({required TextEditingController controller}) {
     return Container(
       height: 52.h,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(32.r),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.emailAddress,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 16.sp,
-        ),
+        style: TextStyle(color: Colors.white, fontSize: 16.sp),
         decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.4),
-            fontSize: 16.sp,
-          ),
+          hintText: 'Email',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 16.sp),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16.w,
-            vertical: 14.h,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
         ),
       ),
     );

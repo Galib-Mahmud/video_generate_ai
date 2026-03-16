@@ -1,21 +1,21 @@
+// lib/feature/profile/screen/profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:hussein/route/route_name.dart';
 
 import '../../../route/app_route.dart';
 import '../../color/app_color.dart';
+import '../../home/controller/profile_controller.dart';
 
-class ProfileScreen extends StatefulWidget {
+
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  @override
   Widget build(BuildContext context) {
+    final ProfileController profile = ProfileController.to;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -27,140 +27,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Top Bar ────────────────────────────────────────
-              _buildTopBar(),
-
-
-              SizedBox(height: 20.h),
-
-              // ── Page Title ─────────────────────────────────────
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Profile',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      'Control your experience and account settings',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
+          child: Obx(() {
+            if (profile.isLoading.value) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.cyan,
+                  strokeWidth: 2,
                 ),
-              ),
-
-              SizedBox(height: 24.h),
-
-              // ── Profile Card ───────────────────────────────────
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: _buildProfileCard(),
-              ),
-
-              SizedBox(height: 8.h),
-
-              // ── Menu Items ─────────────────────────────────────
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Column(
-                  children: [
-                    SizedBox(height: 4.h),
-                    _buildMenuItem(
-                      iconPath: 'assets/images/home/email.png',     // 🔁 your path
-                      label: 'Email',
-                      subtitle: 'andrew_garfield@gmail.com',
-                      trailing: Image.asset(
-                        'assets/images/home/edit.png',              // 🔁 your path
-                        width: 18.w,
-                        height: 18.w,
-                        color: Colors.white.withOpacity(0.5),
-                        errorBuilder: (_, __, ___) => Icon(
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTopBar(),
+                SizedBox(height: 20.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        'Control your experience and account settings',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: _buildProfileCard(profile),
+                ),
+                SizedBox(height: 8.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Column(
+                    children: [
+                      SizedBox(height: 4.h),
+                      _buildMenuItem(
+                        iconPath: 'assets/images/home/email.png',
+                        label: 'Email',
+                        subtitle: profile.email.value.isNotEmpty
+                            ? profile.email.value
+                            : '—',
+                        trailing: Icon(
                           Icons.edit_outlined,
                           color: Colors.white.withOpacity(0.5),
                           size: 18.w,
                         ),
+                        onTap: () {},
                       ),
-                      onTap: () {},
-                    ),
-                    SizedBox(height: 8.h),
-                    _buildMenuItem(
-                      iconPath: 'assets/images/drawer/privacy.png',
-                      label: 'Privacy policy',
-                      trailing: Icon(
-                        Icons.chevron_right,
-                        color: Colors.white.withOpacity(0.5),
-                        size: 22.w,
+                      SizedBox(height: 8.h),
+                      _buildMenuItem(
+                        iconPath: 'assets/images/drawer/privacy.png',
+                        label: 'Privacy policy',
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: Colors.white.withOpacity(0.5),
+                          size: 22.w,
+                        ),
+                        onTap: () => Get.toNamed(RouteName.privacy),
                       ),
-                      onTap: () => Get.toNamed(RouteName.privacy),
-                    ),
-                    SizedBox(height: 8.h),
-                    _buildMenuItem(
-                      iconPath: 'assets/images/auth/logout.png',
-                      label: 'Log out',
-                      onTap: () {
-                        // Handle logout
-                      },
-                    ),
-                  ],
+                      SizedBox(height: 8.h),
+                      _buildMenuItem(
+                        iconPath: 'assets/images/auth/logout.png',
+                        label: 'Log out',
+                        labelColor: Colors.red.shade300,
+                        onTap: () => _confirmLogout(context, profile),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
-  // ── Top bar: hamburger + logo ──────────────────────────────────
   Widget _buildTopBar() {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {
-
-            },
-            child: Image.asset(
-              'assets/icons/profile/menu.png',                        // 🔁 your path
-              width: 26.w,
-              height: 26.w,
-              color: Colors.white,
-              errorBuilder: (_, __, ___) =>
-                  Icon(Icons.menu, color: Colors.white, size: 22.w),
-            ),
+            onTap: () {},
+            child: Icon(Icons.menu, color: Colors.white, size: 22.w),
           ),
           Expanded(
             child: Center(
               child: Image.asset(
                 'assets/images/auth/logo.png',
-                fit: BoxFit.cover,
-
+                errorBuilder: (_, __, ___) => const SizedBox(),
               ),
             ),
           ),
-          SizedBox(width: 22.w), // balance
+          SizedBox(width: 22.w),
         ],
       ),
     );
   }
 
-  // ── Profile card ───────────────────────────────────────────────
-  Widget _buildProfileCard() {
+  Widget _buildProfileCard(ProfileController profile) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       decoration: BoxDecoration(
@@ -170,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          // Avatar with AppColors gradient border ring
+          // Avatar
           Container(
             width: 52.w,
             height: 52.w,
@@ -189,34 +170,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   shape: BoxShape.circle,
                   color: Color(0xFF0D0D0D),
                 ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/profile/profile_picture.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.person,
+                child: Center(
+                  child: Text(
+                    profile.username.value.isNotEmpty
+                        ? profile.username.value[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
                       color: Colors.white,
-                      size: 26.w,
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-
           SizedBox(width: 14.w),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name — AppColors gradient
                 ShaderMask(
                   shaderCallback: (bounds) =>
                       AppColors.textGradient.createShader(bounds),
                   blendMode: BlendMode.srcIn,
                   child: Text(
-                    'Andrew Garfield',
+                    profile.username.value.isNotEmpty
+                        ? profile.username.value
+                        : 'Loading...',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 15.sp,
@@ -226,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  '16 videos created',
+                  '${profile.videosCreated.value} videos created',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.45),
                     fontSize: 12.sp,
@@ -235,8 +216,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-
-          // ··· three-dot
           GestureDetector(
             onTap: () {},
             child: Icon(
@@ -250,12 +229,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Reusable menu row ──────────────────────────────────────────
   Widget _buildMenuItem({
     required String iconPath,
     required String label,
     String? subtitle,
     Widget? trailing,
+    Color? labelColor,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -274,10 +253,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               iconPath,
               width: 22.w,
               height: 22.w,
-              color: Colors.white.withOpacity(0.75),
+              color: labelColor ?? Colors.white.withOpacity(0.75),
               errorBuilder: (_, __, ___) => Icon(
                 Icons.circle_outlined,
-                color: Colors.white.withOpacity(0.75),
+                color: labelColor ?? Colors.white.withOpacity(0.75),
                 size: 22.w,
               ),
             ),
@@ -289,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(
                     label,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: labelColor ?? Colors.white,
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
                     ),
@@ -310,6 +289,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (trailing != null) trailing,
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context, ProfileController profile) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+          side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
+        title: Text(
+          'Log out',
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
+        ),
+        content: Text(
+          'Are you sure you want to log out?',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 13.sp,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 13.sp,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              profile.logout();
+            },
+            child: Text(
+              'Log out',
+              style: TextStyle(
+                color: Colors.red.shade300,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

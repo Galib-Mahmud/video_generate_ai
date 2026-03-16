@@ -1,12 +1,13 @@
+// lib/feature/auth/screen/sign_in_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import '../../../route/app_route.dart';
 import '../../../route/route_name.dart';
+import '../controller/auth_controller.dart';
 import '../widget/custom_button.dart';
-
-
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({Key? key}) : super(key: key);
@@ -16,16 +17,8 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final AuthController _auth = AuthController.to;
   bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +28,7 @@ class _SignInScreenState extends State<SignInScreen> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/auth/sign in.png'), // Your dark background image
+            image: AssetImage('assets/images/auth/sign in.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -50,15 +43,10 @@ class _SignInScreenState extends State<SignInScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 20.h),
-                        // Logo centered
                         Center(
-                          child: Image.asset(
-                            'assets/images/auth/logo.png', // Your green logo
-
-                          ),
+                          child: Image.asset('assets/images/auth/logo.png'),
                         ),
                         SizedBox(height: 30.h),
-                        // Sign In Title
                         Text(
                           'Sign In',
                           style: TextStyle(
@@ -68,43 +56,27 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         SizedBox(height: 30.h),
-                        // User Name Field
+                        // Email or Username
                         _buildTextField(
-                          controller: _emailController,
-                          hintText: 'Username',
+                          controller: _auth.signInEmailController,
+                          hintText: 'Email or Username',
                           isPassword: false,
                         ),
                         SizedBox(height: 16.h),
-
-                        // Email Field
+                        // Password
                         _buildTextField(
-                          controller: _emailController,
-                          hintText: 'Email',
-                          isPassword: false,
-                        ),
-                        SizedBox(height: 16.h),
-                        // Password Field
-                        _buildTextField(
-                          controller: _passwordController,
+                          controller: _auth.signInPasswordController,
                           hintText: 'Password',
                           isPassword: true,
                           obscureText: _obscurePassword,
                           onToggleVisibility: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
+                            setState(() => _obscurePassword = !_obscurePassword);
                           },
                         ),
                         SizedBox(height: 16.h),
-
-                        // Forgot Password
                         Center(
                           child: TextButton(
-                            onPressed: () {
-
-                               Get.toNamed(RouteName.forgetPassword);
-
-                            },
+                            onPressed: () => Get.toNamed(RouteName.forgetPassword),
                             child: Text(
                               'Forgot password?',
                               style: TextStyle(
@@ -120,74 +92,20 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              // Bottom Section
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w),
                 child: Column(
                   children: [
                     // Sign In Button
-                    CustomButton(
-                      text: 'Sign in',
-                      onTap: () {
-                        // Get.toNamed(RouteName.username);
-
-                      },
-                    ),
+                    Obx(() => CustomButton(
+                      text: _auth.isLoading.value ? 'Signing in...' : 'Sign in',
+                      onTap: _auth.isLoading.value ? null : _auth.login,
+                    )),
                     SizedBox(height: 24.h),
-                    // Or Divider
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w),
-                          child: Text(
-                            'or',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 14.sp,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildOrDivider(),
                     SizedBox(height: 24.h),
-                    // Social Login Buttons
-                    Row(
-                      children: [
-                        // Google Button
-                        Expanded(
-                          child: _buildSocialButton(
-                            iconPath: 'assets/images/auth/google.png',
-                            onTap: () {
-                              // Handle Google sign in
-                            },
-                          ),
-                        ),
-                        SizedBox(width: 16.w),
-                        // Apple Button
-                        Expanded(
-                          child: _buildSocialButton(
-                            iconPath: 'assets/images/auth/apple.png',
-                            onTap: () {
-                              // Handle Apple sign in
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildSocialRow(),
                     SizedBox(height: 24.h),
-                    // Sign Up Text
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -199,11 +117,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () {
-
-                            Get.toNamed(RouteName.signUp);
-
-                          },
+                          onTap: () => Get.toNamed(RouteName.signUp),
                           child: Text(
                             'Sign Up',
                             style: TextStyle(
@@ -238,29 +152,17 @@ class _SignInScreenState extends State<SignInScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(32.r),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword ? obscureText : false,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 16.sp,
-        ),
+        style: TextStyle(color: Colors.white, fontSize: 16.sp),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.4),
-            fontSize: 16.sp,
-          ),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 16.sp),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16.w,
-            vertical: 14.h,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
           suffixIcon: isPassword
               ? IconButton(
             onPressed: onToggleVisibility,
@@ -276,24 +178,45 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  Widget _buildSocialButton({
-    required String iconPath,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildOrDivider() {
+    return Row(
+      children: [
+        Expanded(child: Container(height: 2, color: Colors.white.withOpacity(0.2))),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Text('or', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14.sp)),
+        ),
+        Expanded(child: Container(height: 2, color: Colors.white.withOpacity(0.2))),
+      ],
+    );
+  }
+
+  Widget _buildSocialRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSocialButton(
+            iconPath: 'assets/images/auth/google.png',
+            onTap: () {},
+          ),
+        ),
+        SizedBox(width: 16.w),
+        Expanded(
+          child: _buildSocialButton(
+            iconPath: 'assets/images/auth/apple.png',
+            onTap: () {},
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({required String iconPath, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 52.h,
-        decoration: BoxDecoration(
-
-
-        ),
-        child: Center(
-          child: Image.asset(
-            iconPath,
-
-          ),
-        ),
+        child: Center(child: Image.asset(iconPath)),
       ),
     );
   }
