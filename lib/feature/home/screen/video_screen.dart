@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../../route/app_route.dart';
 import '../../color/app_color.dart';
 import '../controller/video_controller.dart';
+import 'app_drawer_controller.dart';
 
 class YourVideosScreen extends StatelessWidget {
   const YourVideosScreen({Key? key}) : super(key: key);
@@ -85,8 +86,8 @@ class YourVideosScreen extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {},
-            child: Icon(Icons.menu, color: Colors.white, size: 22.w),
+            onTap: () {   Get.find<AppDrawerController>().open();},
+            child: Icon(Icons.menu, color: Colors.white, size: 26.w),
           ),
           Expanded(
             child: Center(

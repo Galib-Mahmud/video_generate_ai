@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 
 import '../../color/app_color.dart';
+import '../controller/profile_controller.dart';
 
 class CustomDrawer extends StatelessWidget {
   final VoidCallback onClose;
@@ -27,7 +29,7 @@ class CustomDrawer extends StatelessWidget {
                 onTap: onClose,
                 behavior: HitTestBehavior.opaque,
                 child: Image.asset(
-                  'assets/icons/drawer/menu.png',       // 🔁 your path here
+                  'assets/icons/drawer/menu.png',
                   width: 24.w,
                   height: 24.w,
                   color: Colors.white,
@@ -46,17 +48,17 @@ class CustomDrawer extends StatelessWidget {
             _buildMenuItem(
               iconPath: 'assets/images/drawer/profile.png',
               label: 'Profile',
-              onTap: () {},
+              onTap: () {Get.toNamed('/profile');},
             ),
             _buildMenuItem(
               iconPath: 'assets/images/drawer/subscribe.png',
               label: 'Subscription',
-              onTap: () {},
+              onTap: () {Get.toNamed('/subscribe');},
             ),
             _buildMenuItem(
               iconPath: 'assets/images/drawer/privacy.png',
               label: 'Privacy policy',
-              onTap: () {},
+              onTap: () {Get.toNamed('/privacy');},
             ),
 
             const Spacer(),
@@ -69,15 +71,63 @@ class CustomDrawer extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      // Handle logout
+                      final profile = Get.put(ProfileController());
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          backgroundColor: const Color(0xFF1A1A1A),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.r),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.1)),
+                          ),
+                          title: Text(
+                            'Log out',
+                            style: TextStyle(
+                                color: Colors.white, fontSize: 16.sp),
+                          ),
+                          content: Text(
+                            'Are you sure you want to log out?',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Get.back(),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 13.sp,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Get.back();
+                                profile.logout();
+                              },
+                              child: Text(
+                                'Log out',
+                                style: TextStyle(
+                                  color: Colors.red.shade300,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                     behavior: HitTestBehavior.opaque,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logout icon — uses AppColors.cyan tint
                         Image.asset(
-                          'assets/images/drawer/logout.png',      // 🔁 your path
+                          'assets/images/drawer/logout.png',
                           width: 20.w,
                           height: 20.w,
                           color: AppColors.cyan,
@@ -89,7 +139,8 @@ class CustomDrawer extends StatelessWidget {
                         ),
                         SizedBox(width: 10.w),
                         ShaderMask(
-                          shaderCallback: (bounds) => AppColors.textGradient.createShader(bounds),
+                          shaderCallback: (bounds) =>
+                              AppColors.textGradient.createShader(bounds),
                           blendMode: BlendMode.srcIn,
                           child: Text(
                             'Log out',
@@ -103,7 +154,7 @@ class CustomDrawer extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 10.h),
-                  // Underline — AppColors.cyan with opacity
+                  // Underline
                   Container(
                     height: 1,
                     width: 110.w,
@@ -134,7 +185,6 @@ class CustomDrawer extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
         child: Row(
           children: [
-            // Icon — white
             Image.asset(
               iconPath,
               width: 22.w,
@@ -147,7 +197,6 @@ class CustomDrawer extends StatelessWidget {
               ),
             ),
             SizedBox(width: 16.w),
-            // Label
             Expanded(
               child: Text(
                 label,
@@ -158,7 +207,6 @@ class CustomDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            // Chevron
             Icon(
               Icons.chevron_right,
               color: Colors.white,

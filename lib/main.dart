@@ -12,9 +12,7 @@ import 'package:hussein/theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Pre-warm SharedPreferences and load tokens into memory cache.
-  // Must run before runApp() so all controllers can read the token
-  // synchronously the moment the app starts.
+
   await UserInfo.init();
 
   final bool isAuthenticated = await UserInfo.isLoggedIn();

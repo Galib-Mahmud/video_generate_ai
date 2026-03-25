@@ -22,12 +22,13 @@ class BackgroundModel {
     required this.icon,
   });
 
-  factory BackgroundModel.fromJson(Map<String, dynamic> json) => BackgroundModel(
-    id: json['id'],
-    name: json['name'],
-    description: json['description'] ?? '',
-    icon: json['icon'] ?? '',
-  );
+  factory BackgroundModel.fromJson(Map<String, dynamic> json) =>
+      BackgroundModel(
+        id: json['id'],
+        name: json['name'],
+        description: json['description'] ?? '',
+        icon: json['icon'] ?? '',
+      );
 }
 
 class AvatarModel {
@@ -93,47 +94,48 @@ class ProjectModel {
 // ─── Controller ───────────────────────────────────────────────────
 
 class VideoController extends GetxController {
-  // permanent: true → GetX never destroys this controller during navigation,
-  // so TextEditingControllers are NEVER disposed mid-session.
   static VideoController get to =>
       Get.put(VideoController(), permanent: true);
 
   final ApiClient _apiClient = ApiClient(baseUrl: ApiEndpoint.baseUrl);
 
   // ── Loading states ─────────────────────────────────────────────
-  final RxBool isLoading              = false.obs;
-  final RxBool isGeneratingScript     = false.obs;
-  final RxBool isGeneratingVideo      = false.obs;
-  final RxBool isPollingVideoStatus   = false.obs;
-  final RxBool isFetchingAvatars      = false.obs;
-  final RxBool isFetchingBackgrounds  = false.obs;
-  final RxBool isFetchingProjects     = false.obs;
+  final RxBool isLoading             = false.obs;
+  final RxBool isGeneratingScript    = false.obs;
+  final RxBool isGeneratingVideo     = false.obs;
+  final RxBool isPollingVideoStatus  = false.obs;
+  final RxBool isFetchingAvatars     = false.obs;
+  final RxBool isFetchingBackgrounds = false.obs;
+  final RxBool isFetchingProjects    = false.obs;
 
-  // ── Current project state ──────────────────────────────────────
-  final RxString currentProjectId     = ''.obs;
-  final RxString generatedScript      = ''.obs;
-  final RxString finalizedScript      = ''.obs;
-  final RxString videoStatus          = ''.obs;
-  final RxString videoUrl             = ''.obs;
-  final RxString videoFileUrl         = ''.obs;
+  // ── Current project ────────────────────────────────────────────
+  final RxString currentProjectId  = ''.obs;
+  final RxString generatedScript   = ''.obs;
+  final RxString finalizedScript   = ''.obs;
+  final RxString videoStatus       = ''.obs;
+  final RxString videoUrl          = ''.obs;
+  final RxString videoFileUrl      = ''.obs;
 
-  // ── Video generation animation state ──────────────────────────
-  final RxInt generationStep          = 0.obs;
-  // 0 = idle, 1 = creating project, 2 = generating script,
-  // 3 = generating video, 4 = polling, 5 = complete
+  // ── Generation animation step ──────────────────────────────────
+  // 0=idle 1=project_created 2=script_generating 3=video_rendering
+  // 4=polling 5=complete
+  final RxInt generationStep = 0.obs;
 
   // ── Selected values ────────────────────────────────────────────
-  final RxString selectedIndustry     = ''.obs;
-  final RxString selectedAvatarId     = ''.obs;
-  final RxString selectedBackground   = ''.obs;
-  final RxString selectedOutfit       = 'business'.obs;
+  final RxString selectedIndustry   = ''.obs;
+  final RxString selectedAvatarId   = ''.obs;
+  final RxString selectedBackground = ''.obs;
+  final RxString selectedOutfit     = 'business'.obs;
 
   // ── Data lists ─────────────────────────────────────────────────
-  final RxList<BackgroundModel> backgrounds     = <BackgroundModel>[].obs;
-  final RxMap<String, List<AvatarModel>> avatars = <String, List<AvatarModel>>{}.obs;
-  final RxList<ProjectModel> projects           = <ProjectModel>[].obs;
+  final RxList<BackgroundModel> backgrounds = <BackgroundModel>[].obs;
+  final RxMap<String, List<AvatarModel>> avatars =
+      <String, List<AvatarModel>>{}.obs;
+  final RxList<ProjectModel> projects = <ProjectModel>[].obs;
 
   // ── Text controllers ───────────────────────────────────────────
+  // titleController & serviceDescController are used in Step 1 (Avatar step)
+  // so the user fills in title + service description before generate-script.
   final titleController       = TextEditingController();
   final serviceDescController = TextEditingController();
   final scriptController      = TextEditingController();
@@ -141,8 +143,9 @@ class VideoController extends GetxController {
   Timer? _pollingTimer;
 
   // ─────────────────────────────────────────────────────────────
-  // STEP 1: CREATE PROJECT (Industry selection)
-  // POST /api/v1/videogen/projects/create/  body: { industry }
+  // STEP 1: CREATE PROJECT
+  // POST /api/v1/videogen/projects/create/
+  // body: { industry }
   // ─────────────────────────────────────────────────────────────
   Future<void> createProject(String industry) async {
     isLoading.value = true;
@@ -170,80 +173,107 @@ class VideoController extends GetxController {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // STEP 2: UPDATE PROJECT (Title + Service Description)
+  // STEP 2: UPDATE PROJECT — title + service_description + avatar
   // PATCH /api/v1/videogen/projects/{id}/update/
+  //
+  // IMPORTANT: The API requires title, service_description AND avatar_id
+  // before generate-script will work. This method saves all three.
+  // Call this before generateScript().
   // ─────────────────────────────────────────────────────────────
-  Future<void> updateProjectInfo() async {
-    if (currentProjectId.value.isEmpty) return;
+  Future<bool> updateProjectDetails() async {
+    if (currentProjectId.value.isEmpty) return false;
+
+    final title = titleController.text.trim();
+    final desc  = serviceDescController.text.trim();
+    final avatarId = selectedAvatarId.value;
+
+    // Validate required fields
+    if (title.isEmpty) {
+      _showError('Please enter a video title');
+      return false;
+    }
+    if (desc.isEmpty) {
+      _showError('Please describe your service');
+      return false;
+    }
+    if (avatarId.isEmpty) {
+      _showError('Please select an avatar');
+      return false;
+    }
+
     isLoading.value = true;
     try {
       await _apiClient.patch(
         ApiEndpoint.updateProject(currentProjectId.value),
         body: {
-          'title'              : titleController.text.trim(),
-          'service_description': serviceDescController.text.trim(),
+          'title'              : title,
+          'service_description': desc,
+          'avatar_id'          : avatarId,
         },
         requiresAuth: true,
       );
+      return true;
     } on HttpException catch (e) {
       _showError(_extractMessage(e.body) ?? e.message);
+      return false;
     } catch (e) {
-      print('❌ UpdateProject error: $e');
-      _showError('Failed to update project.');
+      print('❌ UpdateProjectDetails error: $e');
+      _showError('Failed to save project details.');
+      return false;
     } finally {
       isLoading.value = false;
     }
   }
 
   // ─────────────────────────────────────────────────────────────
-  // UPDATE BACKGROUND
-  // PATCH /api/v1/videogen/projects/{id}/update/  body: { background }
+  // UPDATE BACKGROUND ONLY
+  // PATCH /api/v1/videogen/projects/{id}/update/
+  // body: { background }
   // ─────────────────────────────────────────────────────────────
   Future<void> updateBackground(String background) async {
     if (currentProjectId.value.isEmpty) return;
-    isLoading.value = true;
+    // Optimistic update — update UI first, then save
+    selectedBackground.value = background;
     try {
       await _apiClient.patch(
         ApiEndpoint.updateProject(currentProjectId.value),
         body: {'background': background},
         requiresAuth: true,
       );
-      selectedBackground.value = background;
     } on HttpException catch (e) {
       _showError(_extractMessage(e.body) ?? e.message);
     } catch (e) {
       print('❌ UpdateBackground error: $e');
-    } finally {
-      isLoading.value = false;
     }
   }
 
   // ─────────────────────────────────────────────────────────────
   // UPDATE AVATAR
-  // PATCH /api/v1/videogen/projects/{id}/update/  body: { avatar_id }
+  // PATCH /api/v1/videogen/projects/{id}/update/
+  // body: { avatar_id }
   // ─────────────────────────────────────────────────────────────
   Future<void> updateAvatar(String avatarId) async {
+    selectedAvatarId.value = avatarId; // optimistic update
     if (currentProjectId.value.isEmpty) return;
-    isLoading.value = true;
     try {
       await _apiClient.patch(
         ApiEndpoint.updateProject(currentProjectId.value),
         body: {'avatar_id': avatarId},
         requiresAuth: true,
       );
-      selectedAvatarId.value = avatarId;
     } on HttpException catch (e) {
       _showError(_extractMessage(e.body) ?? e.message);
     } catch (e) {
       print('❌ UpdateAvatar error: $e');
-    } finally {
-      isLoading.value = false;
     }
   }
 
   // ─────────────────────────────────────────────────────────────
   // STEP 3: GENERATE AI SCRIPT
   // POST /api/v1/videogen/projects/{id}/generate-script/
+  //
+  // Prerequisite: title, service_description, avatar_id must be set.
+  // Call updateProjectDetails() before this.
   // ─────────────────────────────────────────────────────────────
   Future<void> generateScript() async {
     if (currentProjectId.value.isEmpty) return;
@@ -292,14 +322,13 @@ class VideoController extends GetxController {
       _showError(_extractMessage(e.body) ?? e.message);
     } catch (e) {
       print('❌ FinalizeScript error: $e');
-      _showError('Failed to finalize script.');
     } finally {
       isLoading.value = false;
     }
   }
 
   // ─────────────────────────────────────────────────────────────
-  // STEP 5: GENERATE VIDEO  🎬
+  // STEP 5: GENERATE VIDEO
   // POST /api/v1/videogen/projects/{id}/generate-video/
   // ─────────────────────────────────────────────────────────────
   Future<void> generateVideo() async {
@@ -311,7 +340,6 @@ class VideoController extends GetxController {
         ApiEndpoint.generateVideo(currentProjectId.value),
         requiresAuth: true,
       );
-      // Start polling for status
       _startPolling();
     } on HttpException catch (e) {
       _showError(_extractMessage(e.body) ?? e.message);
@@ -333,9 +361,10 @@ class VideoController extends GetxController {
     generationStep.value = 4;
     isPollingVideoStatus.value = true;
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      await _checkVideoStatus();
-    });
+    _pollingTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) async {
+          await _checkVideoStatus();
+        });
   }
 
   Future<void> _checkVideoStatus() async {
@@ -347,13 +376,13 @@ class VideoController extends GetxController {
       if (response != null) {
         videoStatus.value = response['status'] ?? '';
         if (videoStatus.value == 'video_completed') {
-          videoUrl.value      = response['video_url'] ?? '';
-          videoFileUrl.value  = response['video_file_url'] ?? '';
+          videoUrl.value     = response['video_url'] ?? '';
+          videoFileUrl.value = response['video_file_url'] ?? '';
           _pollingTimer?.cancel();
           isPollingVideoStatus.value = false;
           isGeneratingVideo.value    = false;
           generationStep.value       = 5;
-          fetchProjects(); // refresh list
+          fetchProjects();
         }
       }
     } catch (e) {
@@ -432,7 +461,7 @@ class VideoController extends GetxController {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // RESET (call before starting a new project flow)
+  // RESET
   // ─────────────────────────────────────────────────────────────
   void resetFlow() {
     currentProjectId.value   = '';
@@ -445,6 +474,7 @@ class VideoController extends GetxController {
     selectedIndustry.value   = '';
     selectedAvatarId.value   = '';
     selectedBackground.value = '';
+    selectedOutfit.value     = 'business';
     titleController.clear();
     serviceDescController.clear();
     scriptController.clear();
@@ -459,7 +489,8 @@ class VideoController extends GetxController {
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
-        if (decoded.containsKey('detail')) return decoded['detail'].toString();
+        if (decoded.containsKey('detail'))
+          return decoded['detail'].toString();
         for (final entry in decoded.entries) {
           final val = entry.value;
           if (val is List && val.isNotEmpty) return val.first.toString();
@@ -479,12 +510,12 @@ class VideoController extends GetxController {
         backgroundColor: Colors.red.shade700,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
-  // permanent: true keeps this alive — do NOT dispose TextEditingControllers
   @override
   void onClose() {
     _pollingTimer?.cancel();

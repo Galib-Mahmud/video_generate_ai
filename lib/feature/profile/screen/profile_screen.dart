@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import '../../../route/app_route.dart';
 import '../../color/app_color.dart';
 import '../../home/controller/profile_controller.dart';
+import '../../home/screen/app_drawer_controller.dart';
 
 
 class ProfileScreen extends StatelessWidget {
@@ -124,8 +125,8 @@ class ProfileScreen extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {},
-            child: Icon(Icons.menu, color: Colors.white, size: 22.w),
+            onTap: () {   Get.find<AppDrawerController>().open();},
+            child: Icon(Icons.menu, color: Colors.white, size: 26.w),
           ),
           Expanded(
             child: Center(
