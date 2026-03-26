@@ -343,7 +343,7 @@ class SubscriptionScreen extends StatelessWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      '${plan.currency} ${plan.priceMonthly}',
+                      '£ ${plan.priceMonthly}',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22.sp,

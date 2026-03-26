@@ -9,6 +9,7 @@ import 'package:hussein/feature/home/screen/home_screen.dart';
 import 'package:hussein/feature/home/screen/video_screen.dart';
 import '../color/app_color.dart';
 import '../profile/screen/profile_screen.dart';
+import 'controller/subscription_controller.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key, this.initialIndex = 0});
@@ -30,6 +31,7 @@ class _MainScreenState extends State<MainScreen>
   bool _isDrawerOpen = false;
 
   final AppDrawerController _appDrawerCtrl = Get.put(AppDrawerController());
+  final SubscriptionController _subCtrl = Get.put(SubscriptionController());
 
   @override
   void initState() {
