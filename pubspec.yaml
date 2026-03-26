@@ -25,6 +25,8 @@ dependencies:
   # ─── Local Storage ────────────────────────────────────────────────
   shared_preferences: ^2.3.2
   url_launcher: ^6.2.0
+  video_player: ^2.11.1
+  just_audio:
 
 dev_dependencies:
   flutter_test:

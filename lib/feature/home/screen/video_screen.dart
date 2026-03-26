@@ -1,24 +1,38 @@
 // lib/feature/video/screen/your_videos_screen.dart
+//
+// Add to pubspec.yaml:
+//   video_player: ^2.8.6
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../../route/app_route.dart';
 import '../../color/app_color.dart';
 import '../controller/video_controller.dart';
+import '../controller/your_video_controller.dart';
 import 'app_drawer_controller.dart';
 
-class YourVideosScreen extends StatelessWidget {
+class YourVideosScreen extends StatefulWidget {
   const YourVideosScreen({Key? key}) : super(key: key);
 
   @override
+  State<YourVideosScreen> createState() => _YourVideosScreenState();
+}
+
+class _YourVideosScreenState extends State<YourVideosScreen> {
+  final YourVideosController _yvc = YourVideosController.to;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _yvc.refresh());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final VideoController vc = VideoController.to;
-
-    // Fetch on open
-    WidgetsBinding.instance.addPostFrameCallback((_) => vc.fetchProjects());
-
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       body: Container(
@@ -37,38 +51,50 @@ class YourVideosScreen extends StatelessWidget {
               _buildTopBar(),
               SizedBox(height: 20.h),
               _buildPageTitle(),
-              SizedBox(height: 24.h),
+              SizedBox(height: 16.h),
               Expanded(
                 child: Obx(() {
-                  // ── Video generation in progress ─────────────
-                  if (vc.isGeneratingVideo.value || vc.isPollingVideoStatus.value) {
+                  final vc = VideoController.to;
+
+                  // ── Generation animation ─────────────────────
+                  if (vc.isGeneratingVideo.value ||
+                      vc.isPollingVideoStatus.value) {
                     return _VideoGenerationAnimation(
                       step: vc.generationStep.value,
-                    );
-                  }
-                  // ── Loading project list ─────────────────────
-                  if (vc.isFetchingProjects.value) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.cyan,
-                        strokeWidth: 2,
-                      ),
+                      videoUrl: vc.videoFileUrl.value,
+                      onVideoReady: () => _yvc.refresh(),
                     );
                   }
 
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          height: 400.h,
-                          child: vc.projects.isEmpty
-                              ? _buildEmptyState()
-                              : _buildVideoList(vc),
-                        ),
-                        if (vc.projects.isEmpty) _buildGenerateButton(vc),
-                      ],
+                  // ── Loading ──────────────────────────────────
+                  if (_yvc.isFetchingProjects.value) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.cyan, strokeWidth: 2),
+                    );
+                  }
+
+                  // ── Empty state ──────────────────────────────
+                  if (_yvc.projects.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  // ── Project list ─────────────────────────────
+                  return RefreshIndicator(
+                    color: AppColors.cyan,
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    onRefresh: _yvc.refresh,
+                    child: ListView.separated(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.w, vertical: 4.h),
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _yvc.projects.length,
+                      separatorBuilder: (_, __) => SizedBox(height: 14.h),
+                      itemBuilder: (_, i) => _VideoCard(
+                        key: ValueKey(_yvc.projects[i].id),
+                        project: _yvc.projects[i],
+                        isNew: i == 0,
+                      ),
                     ),
                   );
                 }),
@@ -86,7 +112,7 @@ class YourVideosScreen extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {   Get.find<AppDrawerController>().open();},
+            onTap: () => Get.find<AppDrawerController>().open(),
             child: Icon(Icons.menu, color: Colors.white, size: 26.w),
           ),
           Expanded(
@@ -119,7 +145,7 @@ class YourVideosScreen extends StatelessWidget {
           ),
           SizedBox(height: 6.h),
           Text(
-            'Manage, preview, and export your AI-generated\nmarketing videos — all in one place.',
+            'Preview and export your AI-generated marketing videos.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.45),
               fontSize: 13.sp,
@@ -136,272 +162,460 @@ class YourVideosScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            "You haven't created any videos yet",
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.35),
-              fontSize: 13.sp,
-            ),
-          ),
-          SizedBox(height: 10.h),
-          Icon(
-            Icons.videocam_off_outlined,
-            color: Colors.white.withOpacity(0.2),
-            size: 32.w,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideoList(VideoController vc) {
-    return ListView.separated(
-      padding: EdgeInsets.symmetric(horizontal: 16.w),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: vc.projects.length,
-      separatorBuilder: (_, __) => SizedBox(height: 12.h),
-      itemBuilder: (_, i) {
-        final project = vc.projects[i];
-        final bool isNew = i == 0;
-        return _buildVideoCard(
-          title: project.title,
-          time: _formatTime(project.createdAt),
-          isNew: isNew,
-          status: project.status,
-          videoFileUrl: project.videoFileUrl,
-        );
-      },
-    );
-  }
-
-  Widget _buildVideoCard({
-    required String title,
-    required String time,
-    required bool isNew,
-    required String status,
-    String? videoFileUrl,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-      ),
-      child: Row(
-        children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(14.r),
-              bottomLeft: Radius.circular(14.r),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 110.w,
-                  height: 90.h,
-                  color: const Color(0xFF1A1A1A),
-                  child: Icon(
-                    Icons.play_circle_outline,
-                    color: Colors.white.withOpacity(0.2),
-                    size: 32.w,
-                  ),
-                ),
-                Container(
-                  width: 34.w,
-                  height: 34.w,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.45),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.6),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 20.w,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Info
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (isNew)
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8.w, vertical: 3.h),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.purple, AppColors.cyan],
-                            ),
-                            borderRadius: BorderRadius.circular(20.r),
-                          ),
-                          child: Text(
-                            'New',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      const Spacer(),
-                      Icon(
-                        Icons.more_horiz,
-                        color: Colors.white.withOpacity(0.5),
-                        size: 20.w,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    title.isEmpty ? 'Untitled Video' : title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+          Icon(Icons.videocam_off_outlined,
+              color: Colors.white.withOpacity(0.15), size: 56.w),
+          SizedBox(height: 16.h),
+          Text('No videos yet',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600)),
+          SizedBox(height: 6.h),
+          Text('Create your first AI marketing video',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.3), fontSize: 13.sp)),
+          SizedBox(height: 28.h),
+          GestureDetector(
+            onTap: () => Get.toNamed(RouteName.home),
+            child: Container(
+              padding:
+              EdgeInsets.symmetric(horizontal: 28.w, vertical: 14.h),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AppColors.purple, AppColors.cyan]),
+                borderRadius: BorderRadius.circular(30.r),
+              ),
+              child: Text('Generate a Video',
+                  style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Row(
-                    children: [
-                      Text(
-                        time,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.4),
-                          fontSize: 11.sp,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (status == 'video_completed')
-                        GestureDetector(
-                          onTap: () {},
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 14.w, vertical: 5.h),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [AppColors.purple, AppColors.cyan],
-                              ),
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Text(
-                              'Export',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 10.w, vertical: 5.h),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20.r),
-                          ),
-                          child: Text(
-                            status.replaceAll('_', ' '),
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600)),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildGenerateButton(VideoController vc) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 30.h),
-      child: GestureDetector(
-        onTap: () => Get.toNamed(RouteName.home),
-        child: Container(
-          height: 52.h,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(30.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 14,
-                offset: const Offset(-5, 0),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 14,
-                offset: const Offset(5, 0),
-              ),
-            ],
-          ),
-          child: Center(
-            child: ShaderMask(
-              shaderCallback: (bounds) =>
-                  AppColors.textGradient.createShader(bounds),
-              blendMode: BlendMode.srcIn,
-              child: Text(
-                'Generate to get started',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
+// ─────────────────────────────────────────────────────────────────────────────
+// VIDEO CARD — inline video player
+// ─────────────────────────────────────────────────────────────────────────────
+class _VideoCard extends StatefulWidget {
+  final ProjectModel project;
+  final bool isNew;
+  const _VideoCard({Key? key, required this.project, required this.isNew})
+      : super(key: key);
+
+  @override
+  State<_VideoCard> createState() => _VideoCardState();
+}
+
+class _VideoCardState extends State<_VideoCard> {
+  VideoPlayerController? _vpc;
+  bool _expanded = false;
+  bool _loading = false;
+  bool _error = false;
+
+  bool get _hasVideo =>
+      widget.project.videoFileUrl != null &&
+          widget.project.videoFileUrl!.isNotEmpty;
+
+  @override
+  void dispose() {
+    _vpc?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openPlayer() async {
+    if (_loading || !_hasVideo) return;
+    setState(() {
+      _loading = true;
+      _error = false;
+    });
+    try {
+      await _vpc?.dispose();
+      _vpc = VideoPlayerController.networkUrl(
+          Uri.parse(widget.project.videoFileUrl!));
+      await _vpc!.initialize();
+      _vpc!.addListener(() {
+        if (mounted) setState(() {});
+      });
+      await _vpc!.play();
+      setState(() {
+        _expanded = true;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ VideoPlayer: $e');
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
+    }
+  }
+
+  void _togglePlay() {
+    if (_vpc == null) return;
+    _vpc!.value.isPlaying ? _vpc!.pause() : _vpc!.play();
+    setState(() {});
+  }
+
+  void _close() {
+    _vpc?.pause();
+    setState(() => _expanded = false);
+  }
+
+  String _fmt(Duration d) =>
+      '${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:'
+          '${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isComplete = widget.project.status == 'video_completed';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: _expanded
+              ? AppColors.cyan.withOpacity(0.45)
+              : Colors.white.withOpacity(0.08),
+          width: _expanded ? 1.5 : 1,
+        ),
+        boxShadow: _expanded
+            ? [
+          BoxShadow(
+              color: AppColors.cyan.withOpacity(0.15),
+              blurRadius: 18,
+              spreadRadius: 1)
+        ]
+            : [],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15.r),
+        child: Column(
+          children: [
+            // ── Inline video player ─────────────────────────────
+            if (_expanded && _vpc != null && _vpc!.value.isInitialized)
+              _buildPlayer(),
+
+            // ── Info row ────────────────────────────────────────
+            _buildInfoRow(isComplete),
+          ],
         ),
       ),
     );
   }
 
-  String _formatTime(String isoDate) {
+  Widget _buildPlayer() {
+    final ctrl = _vpc!;
+    final pos = ctrl.value.position;
+    final dur = ctrl.value.duration;
+    final pct = dur.inMilliseconds > 0
+        ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Stack(
+      children: [
+        // Video surface
+        AspectRatio(
+          aspectRatio: ctrl.value.aspectRatio.clamp(0.5, 2.2),
+          child: VideoPlayer(ctrl),
+        ),
+
+        // Tap to play/pause
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: _togglePlay,
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedOpacity(
+              opacity: ctrl.value.isPlaying ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                color: Colors.black.withOpacity(0.4),
+                child: Center(
+                  child: Container(
+                    width: 54.w,
+                    height: 54.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withOpacity(0.55),
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.7), width: 1.5),
+                    ),
+                    child: Icon(
+                      ctrl.value.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 30.w,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Close
+        Positioned(
+          top: 8.h,
+          right: 8.w,
+          child: GestureDetector(
+            onTap: _close,
+            child: Container(
+              width: 28.w,
+              height: 28.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.65),
+              ),
+              child: Icon(Icons.close_rounded,
+                  color: Colors.white, size: 16.w),
+            ),
+          ),
+        ),
+
+        // Seek bar at bottom
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 6.h),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.72),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 2.5.h,
+                    thumbShape:
+                    RoundSliderThumbShape(enabledThumbRadius: 6.w),
+                    overlayShape: SliderComponentShape.noOverlay,
+                    activeTrackColor: AppColors.cyan,
+                    inactiveTrackColor: Colors.white.withOpacity(0.25),
+                    thumbColor: AppColors.cyan,
+                  ),
+                  child: Slider(
+                    value: pct,
+                    onChanged: (v) {
+                      ctrl.seekTo(Duration(
+                          milliseconds:
+                          (v * dur.inMilliseconds).round()));
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_fmt(pos),
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 10.sp)),
+                      Text(_fmt(dur),
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 10.sp)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(bool isComplete) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      child: Row(
+        children: [
+          // Thumbnail / play button
+          GestureDetector(
+            onTap: (isComplete && _hasVideo && !_expanded) ? _openPlayer : null,
+            child: Container(
+              width: 54.w,
+              height: 54.w,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10.r),
+                color: const Color(0xFF1A1A1A),
+                border: Border.all(
+                  color: isComplete
+                      ? AppColors.cyan.withOpacity(0.3)
+                      : Colors.white.withOpacity(0.08),
+                ),
+              ),
+              child: _loading
+                  ? Center(
+                child: SizedBox(
+                  width: 18.w,
+                  height: 18.w,
+                  child: const CircularProgressIndicator(
+                      color: AppColors.cyan, strokeWidth: 2),
+                ),
+              )
+                  : _error
+                  ? Icon(Icons.error_outline,
+                  color: Colors.red.shade400, size: 22.w)
+                  : Icon(
+                isComplete
+                    ? Icons.play_circle_fill_rounded
+                    : Icons.hourglass_top_rounded,
+                color: isComplete
+                    ? AppColors.cyan
+                    : Colors.orange.shade400,
+                size: 26.w,
+              ),
+            ),
+          ),
+
+          SizedBox(width: 12.w),
+
+          // Title + meta
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (widget.isNew)
+                      Container(
+                        margin: EdgeInsets.only(right: 6.w),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 7.w, vertical: 2.h),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [AppColors.purple, AppColors.cyan]),
+                          borderRadius: BorderRadius.circular(20.r),
+                        ),
+                        child: Text('New',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.sp,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    Expanded(
+                      child: Text(
+                        widget.project.title.isEmpty
+                            ? 'Untitled Video'
+                            : widget.project.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  '${widget.project.industry} · ${_fmtTime(widget.project.createdAt)}',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.38),
+                      fontSize: 11.sp),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(width: 10.w),
+
+          // Status / Export
+          if (isComplete)
+            GestureDetector(
+              onTap: () {/* TODO: export */},
+              child: Container(
+                padding:
+                EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [AppColors.purple, AppColors.cyan]),
+                  borderRadius: BorderRadius.circular(20.r),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.download_rounded,
+                        color: Colors.white, size: 13.w),
+                    SizedBox(width: 4.w),
+                    Text('Export',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Container(
+              padding:
+              EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20.r),
+                border:
+                Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Text(
+                widget.project.status.replaceAll('_', ' '),
+                style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtTime(String iso) {
     try {
-      final dt = DateTime.parse(isoDate);
-      final diff = DateTime.now().difference(dt);
-      if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-      if (diff.inHours < 24)   return '${diff.inHours} hr ago';
-      return '${diff.inDays} day ago';
+      final diff = DateTime.now().difference(DateTime.parse(iso));
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
     } catch (_) {
       return '';
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// VIDEO GENERATION ANIMATION WIDGET
-// ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// VIDEO GENERATION ANIMATION
+// ─────────────────────────────────────────────────────────────────────────────
 class _VideoGenerationAnimation extends StatefulWidget {
   final int step;
-  const _VideoGenerationAnimation({Key? key, required this.step})
-      : super(key: key);
+  final String videoUrl;
+  final VoidCallback? onVideoReady;
+
+  const _VideoGenerationAnimation({
+    Key? key,
+    required this.step,
+    required this.videoUrl,
+    this.onVideoReady,
+  }) : super(key: key);
 
   @override
   State<_VideoGenerationAnimation> createState() =>
@@ -410,52 +624,42 @@ class _VideoGenerationAnimation extends StatefulWidget {
 
 class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
     with TickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late AnimationController _rotateController;
-  late AnimationController _progressController;
+  late AnimationController _rotateCtrl;
+  late AnimationController _pulseCtrl;
+  late AnimationController _progressCtrl;
+  late AnimationController _particleCtrl;
   late Animation<double> _pulseAnim;
   late Animation<double> _progressAnim;
+  bool _notified = false;
 
-  final List<String> _steps = [
-    'Initializing...',
-    'Creating your project',
-    'Generating AI script',
-    'Rendering video with avatar',
-    'Processing video...',
-    'Video complete! 🎉',
+  static const _info = [
+    ['Starting up…',          'Initializing your project'],
+    ['Project created ✓',     'Moving to script generation'],
+    ['Writing your script…',  'AI is crafting your message'],
+    ['Rendering your video…', 'Avatar & voiceover being merged — ~1 min'],
+    ['Processing…',           'Encoding and uploading your video'],
+    ['Video is ready! 🎉',    'Your marketing video has been generated'],
   ];
 
   @override
   void initState() {
     super.initState();
+    _rotateCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 3))..repeat();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+    _progressCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800));
+    _particleCtrl = AnimationController(
+        vsync: this, duration: const Duration(seconds: 4))..repeat();
 
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
-    _rotateController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
+    _pulseAnim = Tween<double>(begin: 0.88, end: 1.12).animate(
+        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
     _progressAnim = Tween<double>(
-      begin: 0,
-      end: (widget.step / 5).clamp(0.0, 1.0),
-    ).animate(
-      CurvedAnimation(parent: _progressController, curve: Curves.easeOut),
-    );
-
-    _progressController.forward();
+        begin: 0, end: (widget.step / 5).clamp(0.0, 1.0))
+        .animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut));
+    _progressCtrl.forward();
   }
 
   @override
@@ -463,181 +667,268 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
     super.didUpdateWidget(old);
     if (old.step != widget.step) {
       _progressAnim = Tween<double>(
-        begin: _progressAnim.value,
-        end: (widget.step / 5).clamp(0.0, 1.0),
-      ).animate(
-        CurvedAnimation(parent: _progressController, curve: Curves.easeOut),
-      );
-      _progressController
-        ..reset()
-        ..forward();
+          begin: _progressAnim.value,
+          end: (widget.step / 5).clamp(0.0, 1.0))
+          .animate(CurvedAnimation(
+          parent: _progressCtrl, curve: Curves.easeOut));
+      _progressCtrl..reset()..forward();
     }
-    // Stop spinning when done
-    if (widget.step == 5) {
-      _rotateController.stop();
-      _pulseController.stop();
+    if (widget.step >= 5 && !_notified) {
+      _notified = true;
+      _rotateCtrl.stop();
+      _pulseCtrl.stop();
+      _particleCtrl.stop();
+      WidgetsBinding.instance.addPostFrameCallback(
+              (_) => widget.onVideoReady?.call());
     }
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _rotateController.dispose();
-    _progressController.dispose();
+    _rotateCtrl.dispose();
+    _pulseCtrl.dispose();
+    _progressCtrl.dispose();
+    _particleCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isDone = widget.step == 5;
-    final String label = widget.step < _steps.length
-        ? _steps[widget.step]
-        : _steps.last;
+    final bool isDone = widget.step >= 5;
+    final int s = widget.step.clamp(0, _info.length - 1);
 
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 32.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Animated icon ──────────────────────────────────
-            ScaleTransition(
-              scale: isDone ? const AlwaysStoppedAnimation(1.0) : _pulseAnim,
-              child: RotationTransition(
-                turns: isDone
-                    ? const AlwaysStoppedAnimation(0)
-                    : _rotateController,
-                child: Container(
-                  width: 80.w,
-                  height: 80.w,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [AppColors.purple, AppColors.cyan],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.cyan.withOpacity(0.4),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      isDone
-                          ? Icons.check_rounded
-                          : Icons.movie_creation_outlined,
-                      color: Colors.white,
-                      size: 36.w,
-                    ),
-                  ),
-                ),
-              ),
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          AnimatedBuilder(
+            animation: _particleCtrl,
+            builder: (_, __) => CustomPaint(
+              painter: _ParticlePainter(_particleCtrl.value),
+              size: MediaQuery.of(context).size,
             ),
-
-            SizedBox(height: 28.h),
-
-            // ── Step label ────────────────────────────────────
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Text(
-                label,
-                key: ValueKey(widget.step),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-
-            SizedBox(height: 8.h),
-
-            Text(
-              isDone
-                  ? 'Your video is ready to export!'
-                  : 'This may take a few moments...',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.45),
-                fontSize: 12.sp,
-              ),
-            ),
-
-            SizedBox(height: 28.h),
-
-            // ── Progress bar ─────────────────────────────────
-            AnimatedBuilder(
-              animation: _progressAnim,
-              builder: (_, __) {
-                return Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10.r),
-                      child: Container(
-                        height: 6.h,
-                        width: double.infinity,
-                        color: Colors.white.withOpacity(0.1),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: _progressAnim.value,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [AppColors.purple, AppColors.cyan],
-                              ),
+          ),
+          Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Animated icon
+                  AnimatedBuilder(
+                    animation:
+                    Listenable.merge([_rotateCtrl, _pulseCtrl]),
+                    builder: (_, __) => Transform.scale(
+                      scale: isDone ? 1.0 : _pulseAnim.value,
+                      child: Transform.rotate(
+                        angle:
+                        isDone ? 0 : _rotateCtrl.value * 2 * math.pi,
+                        child: Container(
+                          width: 88.w,
+                          height: 88.w,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [AppColors.purple, AppColors.cyan],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: AppColors.cyan.withOpacity(0.5),
+                                  blurRadius: 32,
+                                  spreadRadius: 4),
+                            ],
+                          ),
+                          child: Icon(
+                            isDone
+                                ? Icons.check_rounded
+                                : Icons.movie_creation_outlined,
+                            color: Colors.white,
+                            size: 40.w,
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      '${(_progressAnim.value * 100).toInt()}%',
-                      style: TextStyle(
-                        color: AppColors.cyan,
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
+                  ),
+
+                  SizedBox(height: 32.h),
+
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: Text(_info[s][0],
+                        key: ValueKey(widget.step),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20.sp,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                  SizedBox(height: 8.h),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: Text(_info[s][1],
+                        key: ValueKey('s${widget.step}'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 13.sp,
+                            height: 1.5)),
+                  ),
+
+                  SizedBox(height: 36.h),
+
+                  // Progress bar
+                  AnimatedBuilder(
+                    animation: _progressAnim,
+                    builder: (_, __) {
+                      final pct = _progressAnim.value;
+                      return Column(
+                        children: [
+                          Container(
+                            height: 7.h,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10.r),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: pct,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(colors: [
+                                      AppColors.purple,
+                                      AppColors.cyan,
+                                    ]),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 10.h),
+                          Text('${(pct * 100).toInt()}%',
+                              style: TextStyle(
+                                  color: AppColors.cyan,
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 28.h),
+
+                  // Step dots
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (i) {
+                      final bool done = widget.step > i;
+                      final bool cur = widget.step == i + 1;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: EdgeInsets.symmetric(horizontal: 4.w),
+                        width: cur ? 26.w : 8.w,
+                        height: 8.w,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4.r),
+                          gradient: done || cur
+                              ? const LinearGradient(colors: [
+                            AppColors.purple,
+                            AppColors.cyan,
+                          ])
+                              : null,
+                          color: done || cur
+                              ? null
+                              : Colors.white.withOpacity(0.15),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  SizedBox(height: 36.h),
+
+                  if (!isDone)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.w, vertical: 14.h),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.08)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.tips_and_updates_outlined,
+                              color: AppColors.cyan, size: 18.w),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: Text(
+                              'Video generation takes about 1–2 minutes. '
+                                  'The list below will refresh automatically.',
+                              style: TextStyle(
+                                  color: Colors.white.withOpacity(0.55),
+                                  fontSize: 11.sp,
+                                  height: 1.5),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                );
-              },
+                ],
+              ),
             ),
-
-            SizedBox(height: 32.h),
-
-            // ── Step dots ────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final bool active   = widget.step > i;
-                final bool current  = widget.step == i + 1;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: EdgeInsets.symmetric(horizontal: 4.w),
-                  width: current ? 20.w : 8.w,
-                  height: 8.w,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4.r),
-                    gradient: active || current
-                        ? const LinearGradient(
-                      colors: [AppColors.purple, AppColors.cyan],
-                    )
-                        : null,
-                    color: active || current
-                        ? null
-                        : Colors.white.withOpacity(0.2),
-                  ),
-                );
-              }),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+// Particle painter
+class _ParticlePainter extends CustomPainter {
+  final double progress;
+
+  static final _pts = List.generate(
+    20,
+        (i) => _P(
+      x: (i * 0.137 + 0.05) % 1.0,
+      y: (i * 0.193 + 0.03) % 1.0,
+      r: 1.5 + (i % 4) * 1.1,
+      speed: 0.10 + (i % 5) * 0.04,
+      phase: i * 0.32,
+      opacity: 0.12 + (i % 4) * 0.06,
+    ),
+  );
+
+  _ParticlePainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in _pts) {
+      final t = (progress * p.speed + p.phase) % 1.0;
+      canvas.drawCircle(
+        Offset(p.x * size.width, ((p.y + t) % 1.0) * size.height),
+        p.r,
+        Paint()
+          ..color = AppColors.cyan.withOpacity(p.opacity * (1 - t * 0.6)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter o) => o.progress != progress;
+}
+
+class _P {
+  final double x, y, r, speed, phase, opacity;
+  const _P({
+    required this.x,
+    required this.y,
+    required this.r,
+    required this.speed,
+    required this.phase,
+    required this.opacity,
+  });
 }

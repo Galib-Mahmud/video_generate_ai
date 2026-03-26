@@ -16,6 +16,7 @@ class RouteName {
   static const String home = '/home';
   static const String subscribe = '/subscribe';
   static const String generate = '/generate';
+  static const String home1 = '/home1';
 
 
 

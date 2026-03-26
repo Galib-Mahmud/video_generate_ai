@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:hussein/feature/home/screen/app_drawer_controller.dart';
 import 'package:hussein/feature/home/screen/app_drawer_screen.dart';
 import 'package:hussein/feature/home/screen/generate_video.dart';
+import 'package:hussein/feature/home/screen/home1.dart';
 import 'package:hussein/feature/home/screen/home_screen.dart';
 import 'package:hussein/feature/home/screen/video_screen.dart';
 import '../color/app_color.dart';
@@ -68,8 +69,8 @@ class _MainScreenState extends State<MainScreen>
   }
 
   final List<Widget> _pages = [
+    Home1(),
     HomeScreen(),
-    VideoCreationFlowScreen(),
     YourVideosScreen(),
     ProfileScreen(),
   ];

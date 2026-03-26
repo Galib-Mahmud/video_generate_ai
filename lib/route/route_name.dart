@@ -10,6 +10,7 @@ import '../feature/auth/screen/sign_up_screen.dart';
 import '../feature/home/main_screen.dart';
 import '../feature/home/screen/app_drawer_screen.dart';
 import '../feature/home/screen/generate_video.dart';
+import '../feature/home/screen/home1.dart';
 import '../feature/home/screen/home_screen.dart';
 import '../feature/home/screen/subscription_screen.dart';
 import '../feature/home/screen/video_screen.dart';
@@ -84,6 +85,10 @@ class AppRoute {
     ),GetPage(
       name: RouteName.generate,
       page: () => VideoCreationFlowScreen(),
+      transition: Transition.noTransition,
+    ),GetPage(
+      name: RouteName.home1,
+      page: () => Home1(),
       transition: Transition.noTransition,
     ),
   ];
