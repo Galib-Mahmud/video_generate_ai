@@ -33,10 +33,14 @@ class _SplashScreenState extends State<SplashScreen> {
           // Background image
           Positioned.fill(
             child: Image.asset(
-              _currentPage == 0 ?  'assets/images/splash/Logo.png' : 'assets/images/splash/Splash screen.png',
+              _currentPage == 0 ?  'assets/images/splash/s.png' : 'assets/images/splash/Splashs.png',
               fit: BoxFit.cover,
             ),
           ),
+
+
+
+
           SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
