@@ -1,12 +1,14 @@
 // lib/feature/video/screen/your_videos_screen.dart
-//
-// Add to pubspec.yaml:
-//   video_player: ^2.8.6
 
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../route/app_route.dart';
@@ -15,6 +17,95 @@ import '../controller/video_controller.dart';
 import '../controller/your_video_controller.dart';
 import 'app_drawer_controller.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT SERVICE
+// ─────────────────────────────────────────────────────────────────────────────
+class _VideoExportService {
+  static Future<void> export({
+    required String videoUrl,
+    required BuildContext context,
+    String fileName = 'exported_video.mp4',
+  }) async {
+    if (videoUrl.isEmpty) {
+      _snack(context, '❌ No video URL found.', Colors.red.shade700);
+      return;
+    }
+
+    final granted = await _requestPermission();
+    if (!granted) {
+      _snack(context, '❌ Storage permission denied.', Colors.red.shade700);
+      return;
+    }
+
+    _snack(context, '⏳ Exporting video…', const Color(0xFF1A1A2E));
+
+    try {
+      bool? success;
+
+      if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/$fileName';
+
+        await Dio().download(
+          videoUrl,
+          tempPath,
+          onReceiveProgress: (received, total) {
+            if (total > 0) {
+              debugPrint('Export progress: ${(received / total * 100).toInt()}%');
+            }
+          },
+        );
+        success = await GallerySaver.saveVideo(tempPath, toDcim: true);
+        try {
+          File(tempPath).deleteSync();
+        } catch (_) {}
+      } else {
+        success = await GallerySaver.saveVideo(videoUrl, toDcim: true);
+      }
+
+      if (success == true) {
+        _snack(context, '✅ Video saved to gallery!', Colors.green.shade700);
+      } else {
+        throw Exception('GallerySaver returned false');
+      }
+    } catch (e) {
+      debugPrint('❌ Export error: $e');
+      _snack(context, '❌ Export failed. Try again.', Colors.red.shade700);
+    }
+  }
+
+  static Future<bool> _requestPermission() async {
+    if (Platform.isAndroid) {
+      if (await Permission.videos.isGranted) return true;
+      if (await Permission.storage.isGranted) return true;
+      final videos = await Permission.videos.request();
+      if (videos.isGranted) return true;
+      final storage = await Permission.storage.request();
+      return storage.isGranted;
+    } else if (Platform.isIOS) {
+      final result = await Permission.photosAddOnly.request();
+      return result.isGranted;
+    }
+    return true;
+  }
+
+  static void _snack(BuildContext context, String msg, Color color) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      duration: const Duration(seconds: 3),
+    ));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 class YourVideosScreen extends StatefulWidget {
   const YourVideosScreen({Key? key}) : super(key: key);
 
@@ -56,7 +147,6 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
                 child: Obx(() {
                   final vc = VideoController.to;
 
-                  // ── Generation animation ─────────────────────
                   if (vc.isGeneratingVideo.value ||
                       vc.isPollingVideoStatus.value) {
                     return _VideoGenerationAnimation(
@@ -66,7 +156,6 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
                     );
                   }
 
-                  // ── Loading ──────────────────────────────────
                   if (_yvc.isFetchingProjects.value) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -74,19 +163,21 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
                     );
                   }
 
-                  // ── Empty state ──────────────────────────────
                   if (_yvc.projects.isEmpty) {
                     return _buildEmptyState();
                   }
 
-                  // ── Project list ─────────────────────────────
                   return RefreshIndicator(
                     color: AppColors.cyan,
                     backgroundColor: const Color(0xFF1A1A1A),
                     onRefresh: _yvc.refresh,
                     child: ListView.separated(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 16.w, vertical: 4.h),
+                      padding: EdgeInsets.only(
+                        left: 16.w,
+                        right: 16.w,
+                        top: 4.h,
+                        bottom: 200.h,
+                      ),
                       physics: const BouncingScrollPhysics(),
                       itemCount: _yvc.projects.length,
                       separatorBuilder: (_, __) => SizedBox(height: 14.h),
@@ -178,8 +269,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
           GestureDetector(
             onTap: () => Get.toNamed(RouteName.home),
             child: Container(
-              padding:
-              EdgeInsets.symmetric(horizontal: 28.w, vertical: 14.h),
+              padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 14.h),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                     colors: [AppColors.purple, AppColors.cyan]),
@@ -199,7 +289,7 @@ class _YourVideosScreenState extends State<YourVideosScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VIDEO CARD — inline video player
+// VIDEO CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _VideoCard extends StatefulWidget {
   final ProjectModel project;
@@ -216,10 +306,13 @@ class _VideoCardState extends State<_VideoCard> {
   bool _expanded = false;
   bool _loading = false;
   bool _error = false;
+  bool _exporting = false;
 
   bool get _hasVideo =>
       widget.project.videoFileUrl != null &&
           widget.project.videoFileUrl!.isNotEmpty;
+
+  String get _playableUrl => widget.project.playableUrl;
 
   @override
   void dispose() {
@@ -235,8 +328,7 @@ class _VideoCardState extends State<_VideoCard> {
     });
     try {
       await _vpc?.dispose();
-      _vpc = VideoPlayerController.networkUrl(
-          Uri.parse(widget.project.videoFileUrl!));
+      _vpc = VideoPlayerController.networkUrl(Uri.parse(_playableUrl));
       await _vpc!.initialize();
       _vpc!.addListener(() {
         if (mounted) setState(() {});
@@ -264,6 +356,18 @@ class _VideoCardState extends State<_VideoCard> {
   void _close() {
     _vpc?.pause();
     setState(() => _expanded = false);
+  }
+
+  Future<void> _handleExport() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    await _VideoExportService.export(
+      videoUrl: _playableUrl,
+      context: context,
+      fileName:
+      '${widget.project.title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.mp4',
+    );
+    if (mounted) setState(() => _exporting = false);
   }
 
   String _fmt(Duration d) =>
@@ -299,11 +403,8 @@ class _VideoCardState extends State<_VideoCard> {
         borderRadius: BorderRadius.circular(15.r),
         child: Column(
           children: [
-            // ── Inline video player ─────────────────────────────
             if (_expanded && _vpc != null && _vpc!.value.isInitialized)
               _buildPlayer(),
-
-            // ── Info row ────────────────────────────────────────
             _buildInfoRow(isComplete),
           ],
         ),
@@ -321,13 +422,10 @@ class _VideoCardState extends State<_VideoCard> {
 
     return Stack(
       children: [
-        // Video surface
         AspectRatio(
           aspectRatio: ctrl.value.aspectRatio.clamp(0.5, 2.2),
           child: VideoPlayer(ctrl),
         ),
-
-        // Tap to play/pause
         Positioned.fill(
           child: GestureDetector(
             onTap: _togglePlay,
@@ -360,8 +458,6 @@ class _VideoCardState extends State<_VideoCard> {
             ),
           ),
         ),
-
-        // Close
         Positioned(
           top: 8.h,
           right: 8.w,
@@ -374,13 +470,11 @@ class _VideoCardState extends State<_VideoCard> {
                 shape: BoxShape.circle,
                 color: Colors.black.withOpacity(0.65),
               ),
-              child: Icon(Icons.close_rounded,
-                  color: Colors.white, size: 16.w),
+              child:
+              Icon(Icons.close_rounded, color: Colors.white, size: 16.w),
             ),
           ),
         ),
-
-        // Seek bar at bottom
         Positioned(
           left: 0,
           right: 0,
@@ -540,29 +634,46 @@ class _VideoCardState extends State<_VideoCard> {
 
           SizedBox(width: 10.w),
 
-          // Status / Export
+          // Export button
           if (isComplete)
             GestureDetector(
-              onTap: () {/* TODO: export */},
-              child: Container(
+              onTap: _exporting ? null : _handleExport,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 padding:
                 EdgeInsets.symmetric(horizontal: 12.w, vertical: 7.h),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                      colors: [AppColors.purple, AppColors.cyan]),
+                  gradient: LinearGradient(
+                    colors: _exporting
+                        ? [
+                      AppColors.purple.withOpacity(0.5),
+                      AppColors.cyan.withOpacity(0.5)
+                    ]
+                        : [AppColors.purple, AppColors.cyan],
+                  ),
                   borderRadius: BorderRadius.circular(20.r),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.download_rounded,
-                        color: Colors.white, size: 13.w),
+                    if (_exporting)
+                      SizedBox(
+                        width: 13.w,
+                        height: 13.w,
+                        child: const CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    else
+                      Icon(Icons.download_rounded,
+                          color: Colors.white, size: 13.w),
                     SizedBox(width: 4.w),
-                    Text('Export',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      _exporting ? 'Saving…' : 'Export',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
               ),
@@ -633,32 +744,35 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
   bool _notified = false;
 
   static const _info = [
-    ['Starting up…',          'Initializing your project'],
-    ['Project created ✓',     'Moving to script generation'],
-    ['Writing your script…',  'AI is crafting your message'],
+    ['Starting up…', 'Initializing your project'],
+    ['Project created ✓', 'Moving to script generation'],
+    ['Writing your script…', 'AI is crafting your message'],
     ['Rendering your video…', 'Avatar & voiceover being merged — ~1 min'],
-    ['Processing…',           'Encoding and uploading your video'],
-    ['Video is ready! 🎉',    'Your marketing video has been generated'],
+    ['Processing…', 'Encoding and uploading your video'],
+    ['Video is ready! 🎉', 'Your marketing video has been generated'],
   ];
 
   @override
   void initState() {
     super.initState();
     _rotateCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 3))..repeat();
+        vsync: this, duration: const Duration(seconds: 3))
+      ..repeat();
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1400))
       ..repeat(reverse: true);
     _progressCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
     _particleCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 4))..repeat();
+        vsync: this, duration: const Duration(seconds: 4))
+      ..repeat();
 
     _pulseAnim = Tween<double>(begin: 0.88, end: 1.12).animate(
         CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
     _progressAnim = Tween<double>(
         begin: 0, end: (widget.step / 5).clamp(0.0, 1.0))
-        .animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut));
+        .animate(
+        CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOut));
     _progressCtrl.forward();
   }
 
@@ -671,15 +785,17 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
           end: (widget.step / 5).clamp(0.0, 1.0))
           .animate(CurvedAnimation(
           parent: _progressCtrl, curve: Curves.easeOut));
-      _progressCtrl..reset()..forward();
+      _progressCtrl
+        ..reset()
+        ..forward();
     }
     if (widget.step >= 5 && !_notified) {
       _notified = true;
       _rotateCtrl.stop();
       _pulseCtrl.stop();
       _particleCtrl.stop();
-      WidgetsBinding.instance.addPostFrameCallback(
-              (_) => widget.onVideoReady?.call());
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => widget.onVideoReady?.call());
     }
   }
 
@@ -720,8 +836,9 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
                     builder: (_, __) => Transform.scale(
                       scale: isDone ? 1.0 : _pulseAnim.value,
                       child: Transform.rotate(
-                        angle:
-                        isDone ? 0 : _rotateCtrl.value * 2 * math.pi,
+                        angle: isDone
+                            ? 0
+                            : _rotateCtrl.value * 2 * math.pi,
                         child: Container(
                           width: 88.w,
                           height: 88.w,
@@ -755,24 +872,28 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
 
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: Text(_info[s][0],
-                        key: ValueKey(widget.step),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20.sp,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      _info[s][0],
+                      key: ValueKey(widget.step),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w700),
+                    ),
                   ),
                   SizedBox(height: 8.h),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
-                    child: Text(_info[s][1],
-                        key: ValueKey('s${widget.step}'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 13.sp,
-                            height: 1.5)),
+                    child: Text(
+                      _info[s][1],
+                      key: ValueKey('s${widget.step}'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 13.sp,
+                          height: 1.5),
+                    ),
                   ),
 
                   SizedBox(height: 36.h),
@@ -807,11 +928,13 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
                             ),
                           ),
                           SizedBox(height: 10.h),
-                          Text('${(pct * 100).toInt()}%',
-                              style: TextStyle(
-                                  color: AppColors.cyan,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            '${(pct * 100).toInt()}%',
+                            style: TextStyle(
+                                color: AppColors.cyan,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ],
                       );
                     },
@@ -886,7 +1009,9 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
   }
 }
 
-// Particle painter
+// ─────────────────────────────────────────────────────────────────────────────
+// PARTICLE PAINTER
+// ─────────────────────────────────────────────────────────────────────────────
 class _ParticlePainter extends CustomPainter {
   final double progress;
 

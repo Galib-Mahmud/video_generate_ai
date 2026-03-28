@@ -11,22 +11,18 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-
-  # ─── State Management ─────────────────────────────────────────────
-  get: ^4.6.6
-
-  # ─── UI / Responsive ──────────────────────────────────────────────
-  flutter_screenutil: ^5.9.3
-
-  # ─── Networking ───────────────────────────────────────────────────
-  http: ^1.2.2
-
-  # ─── Local Storage ────────────────────────────────────────────────
-  shared_preferences: ^2.3.2
-  url_launcher: ^6.2.0
-  video_player: ^2.11.1
+  cupertino_icons:
+  get:
+  flutter_screenutil:
+  http:
+  shared_preferences:
+  url_launcher:
+  video_player:
   just_audio:
+  dio:
+  path_provider:
+  permission_handler:
+  gallery_saver:
 
 dev_dependencies:
   flutter_test:
