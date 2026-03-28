@@ -22,7 +22,7 @@ dependencies:
   dio:
   path_provider:
   permission_handler:
-  gallery_saver:
+  saver_gallery:
 
 dev_dependencies:
   flutter_test:

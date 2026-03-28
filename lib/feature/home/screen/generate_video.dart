@@ -1136,7 +1136,7 @@ class _PreviewStepState extends State<_PreviewStep> {
                   ),
                 ),
                 const Spacer(),
-                _buildExportButton(vc),
+
                 Padding(
                   padding: EdgeInsets.only(bottom: 20.h),
                   child: Center(

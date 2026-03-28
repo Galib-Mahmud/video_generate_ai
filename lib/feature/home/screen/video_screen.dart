@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:gallery_saver/gallery_saver.dart';
+import 'package:saver_gallery/saver_gallery.dart'; // ✅ replaced gallery_saver
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -40,8 +40,7 @@ class _VideoExportService {
     _snack(context, '⏳ Exporting video…', const Color(0xFF1A1A2E));
 
     try {
-      bool? success;
-
+      bool success = false; // ✅ non-nullable bool
       if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
         final tempDir = await getTemporaryDirectory();
         final tempPath = '${tempDir.path}/$fileName';
@@ -55,18 +54,34 @@ class _VideoExportService {
             }
           },
         );
-        success = await GallerySaver.saveVideo(tempPath, toDcim: true);
+
+        // ✅ Correct parameter names: filePath + fileName
+        final result = await SaverGallery.saveFile(
+          filePath: tempPath,
+          fileName: fileName,
+          androidRelativePath: 'Movies',
+          skipIfExists: false,
+        );
+        success = result.isSuccess;
+
         try {
           File(tempPath).deleteSync();
         } catch (_) {}
       } else {
-        success = await GallerySaver.saveVideo(videoUrl, toDcim: true);
+        // ✅ Correct parameter names: filePath + fileName
+        final result = await SaverGallery.saveFile(
+          filePath: videoUrl,
+          fileName: fileName,
+          androidRelativePath: 'Movies',
+          skipIfExists: false,
+        );
+        success = result.isSuccess;
       }
 
-      if (success == true) {
+      if (success) {
         _snack(context, '✅ Video saved to gallery!', Colors.green.shade700);
       } else {
-        throw Exception('GallerySaver returned false');
+        throw Exception('SaverGallery returned failure');
       }
     } catch (e) {
       debugPrint('❌ Export error: $e');
@@ -829,7 +844,6 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Animated icon
                   AnimatedBuilder(
                     animation:
                     Listenable.merge([_rotateCtrl, _pulseCtrl]),
@@ -898,7 +912,6 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
 
                   SizedBox(height: 36.h),
 
-                  // Progress bar
                   AnimatedBuilder(
                     animation: _progressAnim,
                     builder: (_, __) {
@@ -942,7 +955,6 @@ class _VideoGenerationAnimationState extends State<_VideoGenerationAnimation>
 
                   SizedBox(height: 28.h),
 
-                  // Step dots
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (i) {
