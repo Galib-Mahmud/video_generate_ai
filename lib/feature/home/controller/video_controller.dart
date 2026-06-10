@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/endpoint/api_client.dart';
@@ -21,6 +22,28 @@ class BackgroundModel {
       description: j['description'] ?? '', icon: j['icon'] ?? '');
 }
 
+// ✅ NEW — uploaded background image (from /backgrounds/uploaded/)
+class UploadedBackgroundModel {
+  final int id;
+  final String imageUrl;
+  final String name;
+  final String createdAt;
+  UploadedBackgroundModel({
+    required this.id,
+    required this.imageUrl,
+    required this.name,
+    required this.createdAt,
+  });
+  factory UploadedBackgroundModel.fromJson(Map<String, dynamic> j) =>
+      UploadedBackgroundModel(
+        id: j['id'] ?? 0,
+        // backend returns both `image` and `image_url` — prefer image_url
+        imageUrl: (j['image_url'] ?? j['image'] ?? '').toString(),
+        name: (j['name'] ?? '').toString(),
+        createdAt: (j['created_at'] ?? '').toString(),
+      );
+}
+
 class AvatarModel {
   final String avatarId;
   final String avatarName;
@@ -28,15 +51,18 @@ class AvatarModel {
   final String outfitCategory;
   final String previewImageUrl;
   final String previewVideoUrl;
-  final String VoiceId;
+  final String voiceId;
   AvatarModel({required this.avatarId, required this.avatarName,
     required this.gender, required this.outfitCategory,
-    required this.previewImageUrl, required this.previewVideoUrl,this.VoiceId='',});
+    required this.previewImageUrl, required this.previewVideoUrl,
+    this.voiceId = ''});
   factory AvatarModel.fromJson(Map<String, dynamic> j) => AvatarModel(
       avatarId: j['avatar_id'] ?? '', avatarName: j['avatar_name'] ?? '',
       gender: j['gender'] ?? '', outfitCategory: j['outfit_category'] ?? '',
       previewImageUrl: j['preview_image_url'] ?? '',
-      previewVideoUrl: j['preview_video_url'] ?? '');
+      previewVideoUrl: j['preview_video_url'] ?? '',
+      voiceId: (j['default_voice_id'] ?? j['suggested_voice_id'] ?? '')
+          .toString());
 }
 
 class ProjectModel {
@@ -48,18 +74,23 @@ class ProjectModel {
   final String avatarOutfit;
   final String? videoFileUrl;
   final String videoUrl;
+  final String voiceId;
   final String createdAt;
+  final bool isRegeneration;
   ProjectModel({required this.id, required this.title,
     required this.industry, required this.status,
     required this.avatarName, required this.avatarOutfit,
-    this.videoFileUrl, this.videoUrl = '', required this.createdAt, required VoiceId});
+    this.videoFileUrl, this.videoUrl = '', this.voiceId = '',
+    required this.createdAt, this.isRegeneration = false});
   factory ProjectModel.fromJson(Map<String, dynamic> j) => ProjectModel(
       id: j['id'] ?? '', title: j['title'] ?? '',
       industry: j['industry'] ?? '', status: j['status'] ?? '',
       avatarName: j['avatar_name'] ?? '', avatarOutfit: j['avatar_outfit'] ?? '',
       videoFileUrl: j['video_file_url'],
-      VoiceId: j['voice_id'] ?? '',
-      videoUrl: j['video_url'] ?? '', createdAt: j['created_at'] ?? '');
+      voiceId: (j['voice_id'] ?? '').toString(),
+      videoUrl: j['video_url'] ?? '',
+      createdAt: j['created_at'] ?? '',
+      isRegeneration: j['is_regeneration'] == true);
   String get playableUrl {
     if (videoUrl.isNotEmpty) return videoUrl;
     if (videoFileUrl != null && videoFileUrl!.isNotEmpty) return videoFileUrl!;
@@ -85,10 +116,11 @@ class VideoController extends GetxController {
   final RxBool isGeneratingTts       = false.obs;
   final RxBool isPatchingBackground  = false.obs;
   final RxBool isPatchingAvatar      = false.obs;
+  final RxBool isUploadingBackground = false.obs; // ✅ NEW
+  final RxBool isRegenerating        = false.obs; // ✅ NEW
 
   // ── Project state ──────────────────────────────────────────────
   final RxString currentProjectId    = ''.obs;
-  final RxString VoiceId    = ''.obs;
 
   final RxString generatedScript     = ''.obs;
   final RxString finalizedScript     = ''.obs;
@@ -114,6 +146,8 @@ class VideoController extends GetxController {
 
   // ── Data ───────────────────────────────────────────────────────
   final RxList<BackgroundModel> backgrounds = <BackgroundModel>[].obs;
+  final RxList<UploadedBackgroundModel> uploadedBackgrounds =
+      <UploadedBackgroundModel>[].obs; // ✅ NEW
   final RxMap<String, List<AvatarModel>> avatars =
       <String, List<AvatarModel>>{}.obs;
   final RxList<ProjectModel> projects = <ProjectModel>[].obs;
@@ -127,7 +161,6 @@ class VideoController extends GetxController {
 
   // ═══════════════════════════════════════════════════════════════
   // STEP 1  –  POST /api/v1/videogen/projects/create/
-  //            body: { industry }
   // ═══════════════════════════════════════════════════════════════
   Future<void> createProject(String industry) async {
     isLoading.value = true;
@@ -156,7 +189,6 @@ class VideoController extends GetxController {
 
   // ═══════════════════════════════════════════════════════════════
   // STEP 2  –  PATCH title + service_description
-  //            PATCH /api/v1/videogen/projects/{id}/update/
   // ═══════════════════════════════════════════════════════════════
   Future<bool> patchTitleAndDescription() async {
     if (currentProjectId.value.isEmpty) return false;
@@ -186,7 +218,7 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 3  –  GET /api/v1/videogen/options/backgrounds/
+  // Preset backgrounds (existing) — GET /options/backgrounds/
   // ═══════════════════════════════════════════════════════════════
   Future<void> fetchBackgrounds() async {
     isFetchingBackgrounds.value = true;
@@ -203,9 +235,74 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 4  –  PATCH background
-  //            PATCH /api/v1/videogen/projects/{id}/update/
-  //            body: { background }
+  // ✅ NEW  –  GET /api/v1/videogen/options/backgrounds/uploaded/
+  //           User's previously uploaded background images
+  // ═══════════════════════════════════════════════════════════════
+  Future<void> fetchUploadedBackgrounds() async {
+    try {
+      final res = await _apiClient.get(
+        ApiEndpoint.uploadedBackgrounds,
+        requiresAuth: true,
+      );
+      if (res is List) {
+        uploadedBackgrounds.value = res
+            .map((e) => UploadedBackgroundModel.fromJson(e))
+            .toList();
+      } else if (res is Map<String, dynamic> && res['results'] is List) {
+        // safety: in case backend paginates this endpoint
+        uploadedBackgrounds.value = (res['results'] as List)
+            .map((e) => UploadedBackgroundModel.fromJson(e))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('❌ fetchUploadedBackgrounds: $e');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ NEW  –  POST /api/v1/videogen/options/backgrounds/upload/
+  //           multipart/form-data → image (file), name (optional)
+  //           On success: adds to list + auto-selects it for the
+  //           current project (PATCH background = image_url)
+  // ═══════════════════════════════════════════════════════════════
+  Future<bool> uploadBackground(File imageFile, {String? name}) async {
+    isUploadingBackground.value = true;
+    try {
+      final res = await _apiClient.multipart(
+        ApiEndpoint.uploadBackground,
+        method: 'POST',
+        fields: {
+          if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        },
+        files: {'image': imageFile},
+        requiresAuth: true,
+      );
+      if (res != null) {
+        final bg = UploadedBackgroundModel.fromJson(
+            Map<String, dynamic>.from(res));
+        uploadedBackgrounds.insert(0, bg); // show newest first
+        // auto-select the freshly uploaded image as the project background
+        if (bg.imageUrl.isNotEmpty) {
+          await patchBackground(bg.imageUrl);
+        }
+        return true;
+      }
+      return false;
+    } on HttpException catch (e) {
+      _showError(_msg(e.body) ?? e.message);
+      return false;
+    } catch (e) {
+      debugPrint('❌ uploadBackground: $e');
+      _showError('Failed to upload background image.');
+      return false;
+    } finally {
+      isUploadingBackground.value = false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PATCH background — preset name, #hex color, OR image URL
+  // (uploaded backgrounds use their image_url here)
   // ═══════════════════════════════════════════════════════════════
   Future<void> patchBackground(String background) async {
     selectedBackground.value = background; // optimistic UI
@@ -227,7 +324,7 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 5  –  GET /api/v1/videogen/options/avatars/
+  // GET /api/v1/videogen/options/avatars/
   // ═══════════════════════════════════════════════════════════════
   Future<void> fetchAvatars() async {
     isFetchingAvatars.value = true;
@@ -257,16 +354,14 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 6  –  PATCH avatar_id
-  //            PATCH /api/v1/videogen/projects/{id}/update/
-  //            body: { avatar_id }
-  //            → stores avatar_preview_video_url for loading screen
+  // PATCH avatar_id
   // ═══════════════════════════════════════════════════════════════
   Future<void> patchAvatar(AvatarModel avatar) async {
     // Optimistic update — store preview URLs immediately
     selectedAvatarId.value      = avatar.avatarId;
     avatarPreviewImageUrl.value = avatar.previewImageUrl;
     avatarPreviewVideoUrl.value = avatar.previewVideoUrl;
+    if (avatar.voiceId.isNotEmpty) selectedVoiceId.value = avatar.voiceId;
 
     if (currentProjectId.value.isEmpty) return;
     isPatchingAvatar.value = true;
@@ -286,11 +381,8 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 7  –  POST /api/v1/videogen/projects/{id}/generate-script/
-  //            Prereq: title, service_description, avatar_id must be set
+  // POST /generate-script/
   // ═══════════════════════════════════════════════════════════════
-  // In VideoController — update generateScript() to save voice_id from response
-
   Future<void> generateScript() async {
     if (currentProjectId.value.isEmpty) return;
     isGeneratingScript.value = true;
@@ -304,8 +396,7 @@ class VideoController extends GetxController {
         generatedScript.value = response['generated_script'] ?? '';
         scriptController.text = generatedScript.value;
 
-        // ✅ Save voice_id from project object in the response
-        // Response structure: { generated_script, project: { voice_id, ... } }
+        // Save voice_id from project object in the response
         final project = response['project'];
         if (project is Map<String, dynamic>) {
           final voiceId = project['voice_id'] ?? '';
@@ -316,7 +407,7 @@ class VideoController extends GetxController {
         }
       }
     } on HttpException catch (e) {
-      _showError((e.body) ?? e.message);
+      _showError(_msg(e.body) ?? e.message);
       generationStep.value = 0;
     } catch (e) {
       debugPrint('❌ GenerateScript error: $e');
@@ -328,8 +419,7 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 8  –  PUT /api/v1/videogen/projects/{id}/finalize-script/
-  //            body: { finalized_script }
+  // PUT /finalize-script/
   // ═══════════════════════════════════════════════════════════════
   Future<void> finalizeScript() async {
     if (currentProjectId.value.isEmpty) return;
@@ -354,19 +444,17 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 9  –  POST /api/v1/videogen/tts/
-  //            body: { project_id, voice_id? }
-  //            → ttsAudioUrl.value contains audio_url for playback
+  // POST /tts/
   // ═══════════════════════════════════════════════════════════════
   Future<void> generateTts() async {
     if (currentProjectId.value.isEmpty) return;
     isGeneratingTts.value = true;
     ttsAudioUrl.value = '';
     try {
-      print("DEBUG VoiceId: ${selectedVoiceId.value}");
-      final body = <String,dynamic>{'project_id': currentProjectId.value,'voice_id':selectedVoiceId.value};
-
-
+      final body = <String, dynamic>{
+        'project_id': currentProjectId.value,
+        if (selectedVoiceId.value.isNotEmpty) 'voice_id': selectedVoiceId.value,
+      };
       final res = await _apiClient.post(
         ApiEndpoint.ttsPreview,
         body: body,
@@ -386,8 +474,7 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // STEP 10  –  POST /api/v1/videogen/projects/{id}/generate-video/
-  //             Re-finalizes script first to avoid 400 errors
+  // POST /generate-video/
   // ═══════════════════════════════════════════════════════════════
   Future<void> generateVideo() async {
     if (currentProjectId.value.isEmpty) return;
@@ -424,8 +511,57 @@ class VideoController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // POLLING  –  GET /api/v1/videogen/projects/{id}/video-status/
-  //             Fires every 5 seconds until video_completed
+  // ✅ NEW  –  POST /api/v1/videogen/projects/{id}/regenerate/
+  //           Re-renders a completed video with identical settings.
+  //           Backend returns a NEW project (is_regeneration: true,
+  //           status: video_processing) — we switch currentProjectId
+  //           to the new project and start polling it.
+  //           Counts against the regeneration quota (403 → paywall).
+  // ═══════════════════════════════════════════════════════════════
+  Future<bool> regenerateProject(String projectId) async {
+    if (projectId.isEmpty || isRegenerating.value) return false;
+    isRegenerating.value = true;
+    try {
+      final res = await _apiClient.post(
+        ApiEndpoint.regenerateProject(projectId),
+        requiresAuth: true,
+      );
+      if (res != null) {
+        final newId = (res['id'] ?? '').toString();
+        if (newId.isEmpty) {
+          _showError('Regeneration failed: no project returned.');
+          return false;
+        }
+        // Reset video state and point at the NEW regenerated project
+        currentProjectId.value = newId;
+        videoStatus.value      = (res['status'] ?? 'video_processing').toString();
+        videoUrl.value         = '';
+        videoFileUrl.value     = '';
+        isGeneratingVideo.value = true;
+        generationStep.value    = 3;
+        _startPolling();
+        return true;
+      }
+      return false;
+    } on ForbiddenException catch (e) {
+      // quota exhausted / no subscription
+      _showError(_msg(e.body) ??
+          'Regeneration quota exhausted. Please upgrade your plan.');
+      return false;
+    } on HttpException catch (e) {
+      _showError(_msg(e.body) ?? e.message);
+      return false;
+    } catch (e) {
+      debugPrint('❌ regenerateProject: $e');
+      _showError('Failed to regenerate video.');
+      return false;
+    } finally {
+      isRegenerating.value = false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // POLLING  –  GET /video-status/ every 5 seconds
   // ═══════════════════════════════════════════════════════════════
   void _startPolling() {
     generationStep.value = 4;
@@ -449,18 +585,26 @@ class VideoController extends GetxController {
           final vFile = res['video_file_url'] ?? '';
           videoUrl.value     = vUrl.isNotEmpty ? vUrl : vFile;
           videoFileUrl.value = vFile;
-          _pollingTimer?.cancel();
-          isPollingVideoStatus.value = false;
-          isGeneratingVideo.value    = false;
-          generationStep.value       = 5;
+          _stopPolling(step: 5);
           fetchProjects();
-          // ── Top snackbar: "Your video is now ready" ─────────
           _showVideoReadySnackbar();
+        } else if (videoStatus.value == 'video_failed') {
+          // ✅ stop polling on failure too — was previously polling forever
+          _stopPolling(step: 0);
+          _showError((res['message'] ?? 'Video generation failed.').toString());
+          fetchProjects();
         }
       }
     } catch (e) {
       debugPrint('❌ polling: $e');
     }
+  }
+
+  void _stopPolling({required int step}) {
+    _pollingTimer?.cancel();
+    isPollingVideoStatus.value = false;
+    isGeneratingVideo.value    = false;
+    generationStep.value       = step;
   }
 
   void _showVideoReadySnackbar() {

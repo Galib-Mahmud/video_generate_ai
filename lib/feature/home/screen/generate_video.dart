@@ -2,7 +2,9 @@
 //
 // FLOW:
 //   Step 0  _TitleStep          → PATCH title + service_description
-//   Step 1  _BackgroundStep     → GET backgrounds → PATCH background
+//   Step 1  _BackgroundStep     → upload background (multipart) +
+//                                 GET uploaded backgrounds + presets
+//                                 → PATCH background (name OR image_url)
 //   Step 2  _AvatarStep         → GET avatars → PATCH avatar_id
 //   Step 3  _ScriptStep         → POST generate-script (needs title+desc+avatar)
 //                                 PUT  finalize-script
@@ -12,10 +14,12 @@
 //                                 Show avatar_preview_video_url while loading
 //                                 Show real video + "Video ready" top snackbar
 
+import 'dart:io';                                   // ✅ NEW
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';    // ✅ NEW
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -41,6 +45,7 @@ class _VideoCreationFlowScreenState extends State<VideoCreationFlowScreen> {
     super.initState();
     // Pre-fetch backgrounds & avatars in parallel as soon as we enter
     VideoController.to.fetchBackgrounds();
+    VideoController.to.fetchUploadedBackgrounds(); // ✅ NEW
     VideoController.to.fetchAvatars();
   }
 
@@ -215,7 +220,7 @@ class _TitleStep extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP 1  –  Background  (GET + PATCH)
+// STEP 1  –  Background  (✅ upload + uploaded list + presets)
 // ─────────────────────────────────────────────────────────────────────────────
 class _BackgroundStep extends StatelessWidget {
   final VoidCallback onContinue;
@@ -244,6 +249,23 @@ class _BackgroundStep extends StatelessWidget {
   String _img(String n) =>
       _imgs[n] ?? 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=700&q=80';
 
+  // ── ✅ NEW: pick an image from the gallery and upload it ──────────
+  Future<void> _pickAndUpload() async {
+    final vc = VideoController.to;
+    if (vc.isUploadingBackground.value) return;
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+      );
+      if (picked == null) return;
+      await vc.uploadBackground(File(picked.path));
+    } catch (e) {
+      debugPrint('❌ pick image: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vc = VideoController.to;
@@ -268,11 +290,22 @@ class _BackgroundStep extends StatelessWidget {
                     _SectionTitle(
                         title: 'Choose a background',
                         subtitle:
-                        'Select a scene that matches your industry'),
+                        'Upload your own image or pick a preset scene'),
                     SizedBox(height: 16.h),
+
+                    // ── ✅ NEW: Your Backgrounds (upload + uploaded) ──
+                    _Label('Your Backgrounds'),
+                    SizedBox(height: 10.h),
+                    Obx(() => _buildUploadedRow(vc)),
+                    SizedBox(height: 24.h),
+
+                    _Label('Preset Scenes'),
+                    SizedBox(height: 10.h),
                   ],
                 ),
               ),
+
+              // ── Preset cards ──────────────────────────────────────
               Obx(() {
                 if (vc.isFetchingBackgrounds.value) {
                   return SizedBox(
@@ -306,6 +339,114 @@ class _BackgroundStep extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // ── ✅ NEW: horizontal row — [Upload tile] + uploaded images ──────
+  Widget _buildUploadedRow(VideoController vc) {
+    final uploading = vc.isUploadingBackground.value;
+    return SizedBox(
+      height: 96.h,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        children: [
+          // Upload tile
+          GestureDetector(
+            onTap: uploading ? null : _pickAndUpload,
+            child: Container(
+              width: 96.w,
+              margin: EdgeInsets.only(right: 12.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(
+                    color: AppColors.cyan.withOpacity(0.4), width: 1.2),
+              ),
+              child: Center(
+                child: uploading
+                    ? SizedBox(
+                  width: 20.w, height: 20.w,
+                  child: const CircularProgressIndicator(
+                      color: AppColors.cyan, strokeWidth: 2),
+                )
+                    : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_photo_alternate_outlined,
+                        color: AppColors.cyan, size: 26.w),
+                    SizedBox(height: 6.h),
+                    Text('Upload',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Previously uploaded images
+          ...vc.uploadedBackgrounds.map((bg) {
+            final sel = vc.selectedBackground.value == bg.imageUrl;
+            return GestureDetector(
+              onTap: () => vc.patchBackground(bg.imageUrl),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 96.w,
+                margin: EdgeInsets.only(right: 12.w),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color: sel
+                        ? AppColors.cyan
+                        : Colors.white.withOpacity(0.1),
+                    width: sel ? 2 : 1,
+                  ),
+                  boxShadow: sel
+                      ? [BoxShadow(
+                      color: AppColors.cyan.withOpacity(0.3),
+                      blurRadius: 10)]
+                      : [],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13.r),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        bg.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF1A1A1A),
+                            child: Icon(Icons.broken_image_outlined,
+                                color: Colors.white.withOpacity(0.2),
+                                size: 24.w)),
+                        loadingBuilder: (_, child, p) => p == null
+                            ? child
+                            : Container(color: const Color(0xFF1A1A1A)),
+                      ),
+                      if (sel)
+                        Positioned(
+                          top: 5.h, right: 5.w,
+                          child: Container(
+                            width: 20.w, height: 20.w,
+                            decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.cyan),
+                            child: Icon(Icons.check,
+                                color: Colors.white, size: 12.w),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -461,7 +602,7 @@ class _AvatarStepState extends State<_AvatarStep> {
                   ],
                 ),
               ),
-             SizedBox(height: 60.h),
+              SizedBox(height: 60.h),
               Obx(() {
                 final busy = vc.isPatchingAvatar.value;
                 return _BottomButton(
@@ -817,7 +958,7 @@ class _ScriptStepState extends State<_ScriptStep> {
                   ],
                 ),
               ),
-             SizedBox(height: 40.h),
+              SizedBox(height: 40.h),
               Obx(() => _BottomButton(
                 label: vc.isLoading.value ? 'Saving…' : 'Continue',
                 onTap: vc.isLoading.value ? null : widget.onContinue,

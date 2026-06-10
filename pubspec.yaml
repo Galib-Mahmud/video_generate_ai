@@ -23,6 +23,7 @@ dependencies:
   path_provider:
   permission_handler:
   saver_gallery:
+  image_picker:
 
 dev_dependencies:
   flutter_test:

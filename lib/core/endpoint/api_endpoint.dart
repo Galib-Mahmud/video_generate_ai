@@ -1,5 +1,4 @@
 // lib/core/endpoint/api_endpoint.dart
-
 class ApiEndpoint {
   static const String baseUrl = "https://heygen.dsrt321.online";
 
@@ -23,21 +22,34 @@ class ApiEndpoint {
   static const String industries  = "/api/v1/videogen/options/industries/";
   static const String backgrounds = "/api/v1/videogen/options/backgrounds/";
   static const String avatars     = "/api/v1/videogen/options/avatars/";
-  static String avatarById(String avatarId) => "/api/v1/videogen/options/avatars/$avatarId/";
+  static String avatarById(String avatarId) =>
+      "/api/v1/videogen/options/avatars/$avatarId/";
+
+  // ─── Video Gen - Backgrounds (uploaded) ────────────────  ✅ NEW
+  // GET  → user's previously uploaded background images
+  static const String uploadedBackgrounds =
+      "/api/v1/videogen/options/backgrounds/uploaded/";
+  // POST (multipart) → upload a new background image
+  static const String uploadBackground =
+      "/api/v1/videogen/options/backgrounds/upload/";
 
   // ─── Video Gen - Projects ──────────────────────────────────────────
   static const String createProject  = "/api/v1/videogen/projects/create/";
   static const String projectList    = "/api/v1/videogen/projects/";
-  static String projectDetail(String id)        => "/api/v1/videogen/projects/$id/";
-  static String updateProject(String id)        => "/api/v1/videogen/projects/$id/update/";
-  static String generateScript(String id)       => "/api/v1/videogen/projects/$id/generate-script/";
-  static String finalizeScript(String id)       => "/api/v1/videogen/projects/$id/finalize-script/";
-  static String generateVideo(String id)        => "/api/v1/videogen/projects/$id/generate-video/";
-  static String videoStatus(String id)          => "/api/v1/videogen/projects/$id/video-status/";
+  static String projectDetail(String id)  => "/api/v1/videogen/projects/$id/";
+  static String updateProject(String id)  => "/api/v1/videogen/projects/$id/update/";
+  static String generateScript(String id) => "/api/v1/videogen/projects/$id/generate-script/";
+  static String finalizeScript(String id) => "/api/v1/videogen/projects/$id/finalize-script/";
+  static String generateVideo(String id)  => "/api/v1/videogen/projects/$id/generate-video/";
+  static String videoStatus(String id)    => "/api/v1/videogen/projects/$id/video-status/";
+
+  // ─── Video Gen - Regenerate ────────────────────────────  ✅ NEW
+  // POST (no body) → re-renders a completed project, returns a NEW project
+  static String regenerateProject(String id) =>
+      "/api/v1/videogen/projects/$id/regenerate/";
 
   // ─── Video Gen - TTS ──────────────────────────────────────────────
   static const String ttsPreview   = "/api/v1/videogen/tts/";
-
 
   // ─── Subscriptions ─────────────────────────────────────────────────
   static const String mySubscription    = "/api/v1/subscriptions/me/";

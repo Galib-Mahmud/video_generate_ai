@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
     <key>NSPhotoLibraryUsageDescription</key>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Select a background image for your video</string>
     <string>We need access to save your exported video to the Photos app.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>We need permission to save videos to your Photos library.</string>

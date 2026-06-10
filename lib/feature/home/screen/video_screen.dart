@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:saver_gallery/saver_gallery.dart'; // ✅ replaced gallery_saver
+import 'package:saver_gallery/saver_gallery.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -40,7 +40,7 @@ class _VideoExportService {
     _snack(context, '⏳ Exporting video…', const Color(0xFF1A1A2E));
 
     try {
-      bool success = false; // ✅ non-nullable bool
+      bool success = false;
       if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
         final tempDir = await getTemporaryDirectory();
         final tempPath = '${tempDir.path}/$fileName';
@@ -55,7 +55,6 @@ class _VideoExportService {
           },
         );
 
-        // ✅ Correct parameter names: filePath + fileName
         final result = await SaverGallery.saveFile(
           filePath: tempPath,
           fileName: fileName,
@@ -68,7 +67,6 @@ class _VideoExportService {
           File(tempPath).deleteSync();
         } catch (_) {}
       } else {
-        // ✅ Correct parameter names: filePath + fileName
         final result = await SaverGallery.saveFile(
           filePath: videoUrl,
           fileName: fileName,
@@ -385,6 +383,63 @@ class _VideoCardState extends State<_VideoCard> {
     if (mounted) setState(() => _exporting = false);
   }
 
+  // ✅ NEW — POST /api/v1/videogen/projects/{id}/regenerate/
+  // Re-renders this completed video with identical settings. The backend
+  // returns a NEW project; VideoController switches to it and starts
+  // polling, which flips the screen into the generation animation.
+  Future<void> _handleRegenerate() async {
+    final vc = VideoController.to;
+    if (vc.isRegenerating.value) return;
+
+    // Small confirm dialog — regeneration costs quota
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161616),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r)),
+        title: Text('Regenerate video?',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700)),
+        content: Text(
+          'This will re-render "${widget.project.title.isEmpty ? 'Untitled Video' : widget.project.title}" with the same settings. It counts against your regeneration quota.',
+          style: TextStyle(
+              color: Colors.white.withOpacity(0.6),
+              fontSize: 13.sp,
+              height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 13.sp)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Regenerate',
+                style: TextStyle(
+                    color: AppColors.cyan,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // Close the inline player if open
+    if (_expanded) _close();
+
+    await vc.regenerateProject(widget.project.id);
+    // On success the screen's Obx automatically shows the generation
+    // animation (isGeneratingVideo/isPollingVideoStatus become true),
+    // and the list refreshes via onVideoReady when it completes.
+  }
+
   String _fmt(Duration d) =>
       '${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:'
           '${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
@@ -648,6 +703,36 @@ class _VideoCardState extends State<_VideoCard> {
           ),
 
           SizedBox(width: 10.w),
+
+          // ✅ NEW — Regenerate button (completed videos only)
+          if (isComplete) ...[
+            Obx(() {
+              final busy = VideoController.to.isRegenerating.value;
+              return GestureDetector(
+                onTap: busy ? null : _handleRegenerate,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 10.w, vertical: 7.h),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1C),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(
+                        color: AppColors.cyan.withOpacity(0.35)),
+                  ),
+                  child: busy
+                      ? SizedBox(
+                    width: 13.w,
+                    height: 13.w,
+                    child: const CircularProgressIndicator(
+                        color: AppColors.cyan, strokeWidth: 2),
+                  )
+                      : Icon(Icons.refresh_rounded,
+                      color: AppColors.cyan, size: 15.w),
+                ),
+              );
+            }),
+            SizedBox(width: 8.w),
+          ],
 
           // Export button
           if (isComplete)
